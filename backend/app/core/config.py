@@ -8,12 +8,18 @@ optional for Phase 1 and will be validated in a later phase.
 
 from __future__ import annotations
 
+import os
 from enum import Enum
 from functools import lru_cache
-from typing import Annotated
+from pathlib import Path
 
-from pydantic import AnyUrl, field_validator, model_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# The .env file lives at the project root (one level above backend/)
+# Works whether uvicorn is run from backend/ or from the project root.
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_ENV_FILE = _PROJECT_ROOT / ".env"
 
 
 class AppEnv(str, Enum):
@@ -40,7 +46,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

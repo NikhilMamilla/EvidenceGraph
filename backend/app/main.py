@@ -1,13 +1,8 @@
 """
 EvidenceGraph — FastAPI application entry point.
 
-Phase 1: Production Foundation
-  - Structured logging
-  - Correlation ID middleware
-  - CORS (read from environment — never wildcard)
-  - Health endpoints: /api/v1/health/live, /api/v1/health/ready
-  - Consistent error format
-  - Clean startup / shutdown lifecycle
+Supabase Migration: backend now connects to Supabase PostgreSQL via SSL.
+Phase 1 foundation infrastructure remains unchanged.
 """
 
 from __future__ import annotations
@@ -26,15 +21,10 @@ from app.core.logging import configure_logging
 from app.core.middleware import CorrelationIDMiddleware
 from app.services.redis_client import close_redis_connection
 
-# Configure structured logging before anything else touches the logger
 configure_logging()
-
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Application lifespan — startup / shutdown logic
-# ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
@@ -47,25 +37,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         },
     )
 
-    # Pre-warm the DB engine — validates DATABASE_URL on startup.
-    # Wrapped in try/except so the app can still start in test environments
-    # where the engine is mocked or DB is not yet available.
+    # Warm up DB engine and verify we're connected to Supabase
     try:
-        from app.db.session import get_engine
+        from app.db.session import get_database_info, get_engine
 
         get_engine()
+        db_info = get_database_info()
+        logger.info(
+            "Supabase PostgreSQL connected",
+            extra={
+                "pg_version": db_info.get("pg_version"),
+                "database": db_info.get("database"),
+                "user": db_info.get("user"),
+                # host is logged for verification — not a secret
+                "host": db_info.get("host"),
+            },
+        )
     except Exception as exc:
-        logger.warning("DB engine warm-up skipped: %s", exc)
+        logger.warning("DB startup verification skipped: %s", exc)
 
-    yield  # ← application runs here
+    yield
 
     logger.info("Shutting down EvidenceGraph API")
     close_redis_connection()
 
 
-# ---------------------------------------------------------------------------
-# Application factory
-# ---------------------------------------------------------------------------
 def create_app() -> FastAPI:
     settings = get_settings()
 
@@ -73,7 +69,7 @@ def create_app() -> FastAPI:
         title="EvidenceGraph API",
         description=(
             "Real-Time Payment-Risk Evidence Intelligence Platform. "
-            "Phase 1: Production Foundation."
+            "Database: Supabase PostgreSQL (Session Pooler, SSL)."
         ),
         version="0.1.0",
         docs_url="/docs" if not settings.is_production else None,
@@ -81,15 +77,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # ------------------------------------------------------------------
-    # Correlation ID / structured access logging
-    # Must be added BEFORE CORSMiddleware so it wraps the full request.
-    # ------------------------------------------------------------------
     app.add_middleware(CorrelationIDMiddleware)
 
-    # ------------------------------------------------------------------
-    # CORS — origins read from environment; never wildcard
-    # ------------------------------------------------------------------
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
@@ -98,14 +87,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # ------------------------------------------------------------------
-    # Exception handlers
-    # ------------------------------------------------------------------
     app.add_exception_handler(Exception, unhandled_exception_handler)  # type: ignore[arg-type]
-
-    # ------------------------------------------------------------------
-    # Routers
-    # ------------------------------------------------------------------
     app.include_router(v1_router)
 
     return app

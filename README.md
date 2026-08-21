@@ -20,81 +20,103 @@ reconcile against real payment outcomes over time.
 
 ## Current Phase
 
-**Phase 1 — Production Foundation**
+**Phase 1 — Production Foundation + Supabase Migration**
 
-This phase establishes the complete engineering foundation. No payment
-processing, evidence intelligence, or risk-scoring is implemented yet.
+Engineering foundation is complete. Database migrated from local Docker PostgreSQL
+to Supabase PostgreSQL. No payment processing or intelligence implemented yet.
 
 ---
 
-## Architecture (Phase 1)
+## Architecture
 
 ```
-┌─────────────────┐     HTTP      ┌──────────────────────┐
-│  React Frontend │ ──────────── ▶│  FastAPI Backend      │
-│  (Vite + TS)    │               │  /api/v1/health/live  │
-│  port 5173      │               │  /api/v1/health/ready │
-└─────────────────┘               └──────────┬────────────┘
-                                             │
-                              ┌──────────────┼──────────────┐
-                              ▼              ▼              
-                     ┌──────────────┐  ┌──────────┐
-                     │  PostgreSQL  │  │  Redis   │
-                     │  port 5432   │  │ port 6379│
-                     └──────────────┘  └──────────┘
+┌─────────────────┐     HTTP      ┌──────────────────────────┐
+│  React Frontend │ ────────────▶ │  FastAPI Backend          │
+│  Vite + TS      │               │  /api/v1/health/live      │
+│  port 5173      │               │  /api/v1/health/ready     │
+└─────────────────┘               │  /api/v1/health/db-info   │
+                                  └────────────┬─────────────┘
+                                               │
+                               ┌───────────────┼───────────────┐
+                               ▼               ▼
+                    ┌──────────────────┐  ┌──────────┐
+                    │ Supabase         │  │  Redis   │
+                    │ PostgreSQL       │  │  Docker  │
+                    │ SSL / port 5432  │  │  port    │
+                    └──────────────────┘  │  6379    │
+                                          └──────────┘
 ```
+
+The browser **never** connects directly to the database.
+All database access goes through the FastAPI backend.
 
 ---
 
 ## Requirements
 
-| Tool        | Minimum version | Notes                             |
-|-------------|-----------------|-----------------------------------|
-| Docker      | 24.x            | Docker Compose v2 included        |
-| Node.js     | 20.x            | For local frontend development    |
-| Python      | 3.12            | For local backend development     |
-| Git         | 2.x             |                                   |
+| Tool        | Minimum version | Notes                          |
+|-------------|-----------------|--------------------------------|
+| Docker      | 24.x            | Docker Compose v2 included     |
+| Node.js     | 20.x            | Local frontend development     |
+| Python      | 3.11+           | Local backend development      |
+| Git         | 2.x             |                                |
+| Supabase    | —               | Free tier project required     |
 
 ---
 
-## Setup
+## Database — Supabase PostgreSQL
 
-### 1 — Clone
+EvidenceGraph uses **Supabase** as its PostgreSQL provider.
 
-```bash
-git clone <repo-url>
-cd EvidenceGraph
+### Getting your connection string
+
+1. Go to [supabase.com](https://supabase.com) → your project
+2. Click **Project Settings** → **Database**
+3. Scroll to **Connection string** → select **URI** tab
+4. Copy the **Direct connection** string (port 5432)
+5. It looks like:
+   ```
+   postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+   ```
+6. Append `?sslmode=require` for SSL enforcement
+7. Paste into your `.env` as `DATABASE_URL`
+
+### SSL
+
+All connections use `sslmode=require`. Supabase enforces SSL by default.
+
+For maximum security (`verify-full`), download the CA certificate from
+**Supabase Dashboard → Settings → Database → SSL Certificate** and configure:
 ```
-
-### 2 — Environment
-
-```bash
-cp .env.example .env
+DATABASE_URL=postgresql://...?sslmode=verify-full&sslrootcert=certs/supabase-ca.crt
 ```
-
-Edit `.env` with your values. For local Docker development the defaults work
-without changes. See the [Environment](#environment) section for details.
 
 ---
 
 ## Environment
 
-| Variable                 | Required        | Default                                               | Description                                    |
-|--------------------------|-----------------|-------------------------------------------------------|------------------------------------------------|
-| `APP_ENV`                | No              | `development`                                         | `development` / `staging` / `production`       |
-| `APP_NAME`               | No              | `evidencegraph-api`                                   | Service name in logs                           |
-| `BACKEND_PORT`           | No              | `8000`                                                | Exposed backend port                           |
-| `FRONTEND_PORT`          | No              | `5173`                                                | Exposed frontend port                          |
-| `DATABASE_URL`           | **Yes**         | `postgresql://postgres:postgres@localhost:5432/evidencegraph` | PostgreSQL connection string      |
-| `REDIS_URL`              | **Yes**         | `redis://localhost:6379/0`                            | Redis connection string                        |
-| `CORS_ORIGINS`           | No              | `http://localhost:5173,http://localhost:3000`         | Comma-separated allowed origins                |
-| `LOG_LEVEL`              | No              | `INFO`                                                | `DEBUG` / `INFO` / `WARNING` / `ERROR`         |
-| `RAZORPAY_KEY_ID`        | No (Phase 1)    | *(empty)*                                             | Razorpay API key — used in a later phase       |
-| `RAZORPAY_KEY_SECRET`    | No (Phase 1)    | *(empty)*                                             | Razorpay secret — used in a later phase        |
-| `RAZORPAY_WEBHOOK_SECRET`| No (Phase 1)    | *(empty)*                                             | Razorpay webhook HMAC secret — later phase     |
+Copy `.env.example` to `.env` and fill in your values:
 
-> Razorpay credentials are **not required** for Phase 1. The backend starts
-> without them and clearly marks them as unconfigured in startup logs.
+```bash
+cp .env.example .env
+```
+
+| Variable                  | Required     | Description                                    |
+|---------------------------|--------------|------------------------------------------------|
+| `DATABASE_URL`            | **Yes**      | Supabase PostgreSQL URI with `?sslmode=require`|
+| `REDIS_URL`               | **Yes**      | Redis connection (default: local Docker)       |
+| `APP_ENV`                 | No           | `development` / `staging` / `production`       |
+| `CORS_ORIGINS`            | No           | Comma-separated allowed frontend origins       |
+| `LOG_LEVEL`               | No           | `DEBUG` / `INFO` / `WARNING` / `ERROR`         |
+| `RAZORPAY_KEY_ID`         | No (Phase 1) | Set in later phases                            |
+| `RAZORPAY_KEY_SECRET`     | No (Phase 1) | Set in later phases                            |
+| `RAZORPAY_WEBHOOK_SECRET` | No (Phase 1) | Set in later phases                            |
+
+### Security
+
+- Credentials live in `.env` only — never in source code, docker-compose, or README
+- `.env` is in `.gitignore` and must never be committed
+- `.env.example` contains placeholder values only
 
 ---
 
@@ -102,38 +124,32 @@ without changes. See the [Environment](#environment) section for details.
 
 ### Docker Compose (recommended)
 
-Starts all four services (frontend, backend, postgres, redis):
-
 ```bash
+# Make sure .env has your Supabase DATABASE_URL
 docker-compose up --build
 ```
 
-Or detached:
+| Service    | URL                        |
+|------------|--------------------------- |
+| Frontend   | http://localhost:5173       |
+| Backend    | http://localhost:8000       |
+| API Docs   | http://localhost:8000/docs  |
+
+### Local development
+
+Start Redis only via Docker:
 
 ```bash
-docker-compose up --build -d
+docker-compose up -d redis
 ```
 
-| Service    | URL                         |
-|------------|---------------------------  |
-| Frontend   | http://localhost:5173        |
-| Backend    | http://localhost:8000        |
-| API Docs   | http://localhost:8000/docs   |
-
-### Local development (services outside Docker)
-
-Start only the infrastructure containers:
-
-```bash
-docker-compose up -d postgres redis
-```
-
-Backend:
+Backend (inside virtual environment):
 
 ```bash
 cd backend
+python -m venv .venv
+.venv\Scripts\Activate.ps1        # Windows PowerShell
 pip install -r requirements.txt
-cp ../.env.example ../.env   # or reuse existing
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -145,63 +161,23 @@ npm install
 npm run dev
 ```
 
-### Makefile shortcuts
-
-```bash
-make dev            # docker-compose up --build
-make dev-local      # start infra only, print local run instructions
-make stop           # docker-compose down
-make logs           # tail compose logs
-make clean          # remove containers + volumes
-```
-
 ---
 
 ## Test
 
-### Backend
+### Backend tests
 
 ```bash
 cd backend
-pip install -r requirements.txt
-pytest tests/ -v
+.venv\Scripts\Activate.ps1
+python -m pytest tests/ -v
 ```
 
-Or via Make:
-
-```bash
-make test-backend
-```
-
-### Frontend
+### Frontend tests
 
 ```bash
 cd frontend
-npm install
 npm run test
-```
-
-Or via Make:
-
-```bash
-make test-frontend
-```
-
-### All
-
-```bash
-make test
-```
-
----
-
-## Lint / Format
-
-```bash
-make lint          # ruff + mypy (backend) + eslint (frontend)
-make lint-backend
-make lint-frontend
-make format        # ruff format + ruff --fix (backend only)
 ```
 
 ---
@@ -210,54 +186,44 @@ make format        # ruff format + ruff --fix (backend only)
 
 ### Liveness — `GET /api/v1/health/live`
 
-Confirms the API process is running.
+Confirms the process is running.
 
 ```bash
 curl http://localhost:8000/api/v1/health/live
 ```
-
 ```json
-{
-  "status": "ok",
-  "service": "evidencegraph-api"
-}
+{"status": "ok", "service": "evidencegraph-api"}
 ```
 
 ### Readiness — `GET /api/v1/health/ready`
 
-Verifies that PostgreSQL **and** Redis are reachable.
-Returns `200` only when both pass. Returns `503` with failure detail otherwise.
+Verifies Supabase PostgreSQL **and** Redis are reachable.
 
 ```bash
 curl http://localhost:8000/api/v1/health/ready
 ```
-
-**Healthy:**
 ```json
-{
-  "status": "ready",
-  "database": "connected",
-  "redis": "connected"
-}
+{"status": "ready", "database": "connected", "redis": "connected"}
 ```
 
-**Degraded (e.g. Redis down):**
-```json
-{
-  "status": "not_ready",
-  "database": "connected",
-  "redis": "unavailable",
-  "error": {
-    "code": "SERVICE_UNAVAILABLE",
-    "message": "Unavailable: Redis"
-  }
-}
-```
+### Database verification — `GET /api/v1/health/db-info`
 
-### Quick check via Make
+Confirms the backend is connected to the correct Supabase project.
+Returns safe metadata only — no credentials.
 
 ```bash
-make health
+curl http://localhost:8000/api/v1/health/db-info
+```
+```json
+{
+  "status": "ok",
+  "database_info": {
+    "pg_version": "PostgreSQL 15.x",
+    "database": "postgres",
+    "user": "postgres",
+    "host": "..."
+  }
+}
 ```
 
 ---
@@ -268,57 +234,32 @@ make health
 EvidenceGraph/
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/          # Route handlers
-│   │   ├── core/            # Config, logging, middleware, errors
-│   │   ├── db/              # SQLAlchemy engine + session
-│   │   ├── models/          # Business models (Phase 2+)
-│   │   ├── schemas/         # Pydantic response schemas
-│   │   ├── services/        # Redis client (Phase 2+ business services)
-│   │   └── main.py          # FastAPI application factory
-│   ├── alembic/             # Database migration infrastructure
-│   ├── tests/               # Automated tests
-│   ├── Dockerfile
-│   ├── alembic.ini
-│   ├── pytest.ini
+│   │   ├── api/v1/       # health endpoints
+│   │   ├── core/         # config, logging, middleware, errors
+│   │   ├── db/           # SQLAlchemy engine + session (Supabase)
+│   │   ├── models/       # business models (Phase 2+)
+│   │   ├── schemas/      # Pydantic response schemas
+│   │   ├── services/     # Redis client
+│   │   └── main.py
+│   ├── alembic/          # migration infrastructure
+│   ├── tests/
 │   └── requirements.txt
-│
 ├── frontend/
 │   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── lib/api/         # API client abstraction
-│   │   └── test/            # Vitest tests
-│   ├── Dockerfile
-│   ├── nginx.conf
+│   │   ├── components/
+│   │   ├── lib/api/      # API client abstraction
+│   │   └── test/
 │   └── package.json
-│
-├── infrastructure/
-│   └── docker/              # Future: production overrides, k8s, terraform
-│
+├── infrastructure/docker/
 ├── docs/
-│   └── phase-1-foundation.md
-│
-├── Architecture-diagrams/   # System architecture images
-├── docker-compose.yml
+├── docker-compose.yml    # redis + backend + frontend (no local postgres)
 ├── .env.example
-├── .gitignore
-├── Makefile
 └── README.md
 ```
 
 ---
 
-## Security Notes
-
-- Secrets are loaded from `.env` exclusively — never hardcoded.
-- `.env` is in `.gitignore` — never committed.
-- CORS is configured from `CORS_ORIGINS` — wildcard (`*`) is not used.
-- Error responses never expose stack traces, credentials, or internal paths.
-- Docker containers run as non-root users.
-- Dependency versions are pinned.
-
----
-
-## What is NOT implemented (Phase 1)
+## What is NOT implemented yet
 
 - Razorpay webhook ingestion
 - Payment event processing
@@ -327,6 +268,3 @@ EvidenceGraph/
 - Risk scoring or fraud detection
 - ML / LLM components
 - Authentication / authorisation
-- Alert engine
-
-These are implemented in subsequent phases.

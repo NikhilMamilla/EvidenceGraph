@@ -1,40 +1,16 @@
 # =============================================================================
 # EvidenceGraph — Docker Compose
-# Phase 1: Infrastructure Foundation
+# Supabase Migration: local postgres removed, backend connects to Supabase.
 # =============================================================================
-# Services: postgres, redis, backend, frontend
-# All inter-service communication uses Docker service names (not localhost).
-# Secrets are read from the .env file — never hardcoded here.
+# Services: redis, backend, frontend
+# Database: Supabase PostgreSQL (external, SSL-secured)
+# All secrets come from the .env file — never hardcoded here.
 # =============================================================================
 
 services:
 
   # ---------------------------------------------------------------------------
-  # PostgreSQL
-  # ---------------------------------------------------------------------------
-  postgres:
-    image: postgres:16.3-alpine
-    container_name: evidencegraph_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - evidencegraph_net
-
-  # ---------------------------------------------------------------------------
-  # Redis
+  # Redis — local cache layer
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7.2-alpine
@@ -55,7 +31,9 @@ services:
       - evidencegraph_net
 
   # ---------------------------------------------------------------------------
-  # Backend — FastAPI
+  # Backend — FastAPI → Supabase PostgreSQL + Redis
+  # DATABASE_URL comes from .env (Supabase connection string with SSL)
+  # Do NOT override DATABASE_URL here — let it come through from .env
   # ---------------------------------------------------------------------------
   backend:
     build:
@@ -66,14 +44,11 @@ services:
     env_file:
       - .env
     environment:
-      # Override DB/Redis URLs to use Docker service names
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # Redis uses the Docker service name inside the compose network
       REDIS_URL: redis://redis:6379/0
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -86,7 +61,7 @@ services:
       - evidencegraph_net
 
   # ---------------------------------------------------------------------------
-  # Frontend — React + Vite
+  # Frontend — React + Vite (served via nginx)
   # ---------------------------------------------------------------------------
   frontend:
     build:
@@ -94,8 +69,6 @@ services:
       dockerfile: Dockerfile
     container_name: evidencegraph_frontend
     restart: unless-stopped
-    environment:
-      VITE_API_BASE_URL: http://localhost:${BACKEND_PORT:-8000}
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     depends_on:
@@ -105,11 +78,9 @@ services:
       - evidencegraph_net
 
 # =============================================================================
-# Volumes — persist data across container restarts
+# Volumes
 # =============================================================================
 volumes:
-  postgres_data:
-    driver: local
   redis_data:
     driver: local
 

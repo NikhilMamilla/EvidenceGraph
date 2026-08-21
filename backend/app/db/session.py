@@ -1,18 +1,20 @@
 """
-SQLAlchemy async-compatible session management.
+SQLAlchemy session management — Supabase PostgreSQL backend.
 
-Phase 1 uses a synchronous psycopg2 driver (simpler, no extra deps).
-The session factory is created once at import time and reused across requests.
+Connection notes:
+  - Uses the Supabase direct connection (port 5432) with sslmode=require.
+  - Pool is intentionally conservative for the Supabase Free Tier
+    (max 60 connections shared across all clients).
+  - pool_pre_ping=True ensures stale connections are recycled automatically.
 
 Business models (Payment, Evidence, etc.) belong to later phases.
-This module only establishes connectivity.
+This module only establishes connectivity and exposes health/verification helpers.
 """
 
 from __future__ import annotations
 
 import logging
-from contextlib import contextmanager
-from typing import Generator
+from typing import Any, Generator
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -42,12 +44,13 @@ def get_engine():  # type: ignore[return]
         settings = get_settings()
         _engine = create_engine(
             settings.database_url,
-            pool_pre_ping=True,       # verify connections before use
-            pool_size=5,
-            max_overflow=10,
-            echo=False,               # set True for SQL debug logging
+            pool_pre_ping=True,   # recycle stale connections automatically
+            pool_size=3,          # conservative: Supabase Free Tier has 60 max
+            max_overflow=5,       # allow short bursts up to 8 total
+            pool_recycle=300,     # recycle connections every 5 minutes
+            echo=False,
         )
-        logger.info("SQLAlchemy engine created")
+        logger.info("SQLAlchemy engine created (Supabase)")
     return _engine
 
 
@@ -81,7 +84,7 @@ def get_db() -> Generator[Session, None, None]:
 # ---------------------------------------------------------------------------
 def check_database_connection() -> bool:
     """
-    Return True if PostgreSQL is reachable, False otherwise.
+    Return True if Supabase PostgreSQL is reachable, False otherwise.
     Does NOT raise — callers handle the boolean.
     """
     try:
@@ -92,3 +95,34 @@ def check_database_connection() -> bool:
     except Exception as exc:
         logger.warning("Database connectivity check failed: %s", exc)
         return False
+
+
+# ---------------------------------------------------------------------------
+# Verification — confirms we are connected to the correct Supabase project
+# Used by the /health/ready endpoint's detailed response and startup logging.
+# Returns safe metadata only — no credentials exposed.
+# ---------------------------------------------------------------------------
+def get_database_info() -> dict[str, Any]:
+    """
+    Return safe metadata about the connected database.
+    Raises on failure — callers should catch.
+    Uses only standard PostgreSQL functions compatible with Supabase Session Pooler.
+    """
+    engine = get_engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            text(
+                "SELECT version(), current_database(), current_user"
+            )
+        ).fetchone()
+    if row is None:
+        return {}
+    version_str = str(row[0])
+    # Extract just "PostgreSQL X.Y" from the full version string
+    pg_version = " ".join(version_str.split()[:2])
+    return {
+        "pg_version": pg_version,
+        "database": row[1],
+        "user": row[2],
+        "provider": "supabase",
+    }
