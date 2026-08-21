@@ -1,0 +1,68 @@
+# =============================================================================
+# EvidenceGraph — .gitignore
+# =============================================================================
+
+# Secrets — NEVER commit these
+.env
+.env.local
+.env.*.local
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+dist/
+build/
+*.egg
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.next/
+out/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Alembic
+# (keep alembic/versions tracked, but ignore pycache inside)
+backend/alembic/versions/__pycache__/
+
+# Logs
+*.log
+logs/

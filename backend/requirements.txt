@@ -1,0 +1,39 @@
+# =============================================================================
+# EvidenceGraph Backend — Python dependencies
+# Phase 1: Production Foundation
+# Versions pinned for reproducibility.
+# Install inside a virtual environment:
+#   python -m venv .venv
+#   .venv\Scripts\activate          (Windows)
+#   pip install -r requirements.txt
+# =============================================================================
+
+# Web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# Data validation
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# Database
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10
+
+# Redis
+redis==5.2.1
+
+# HTTP client (used by TestClient in tests)
+httpx==0.28.0
+
+# Logging
+python-json-logger==3.2.0
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+
+# Linting / type checking (optional, install separately if network is slow)
+# ruff==0.8.4
+# mypy==1.13.0
