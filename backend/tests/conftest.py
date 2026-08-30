@@ -29,6 +29,8 @@ os.environ.setdefault(
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
 os.environ.setdefault("CORS_ORIGINS", "http://localhost:5173")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
+# Phase 10 — admin key for restricted audit-trace endpoints in tests.
+os.environ.setdefault("ADMIN_API_KEY", "test-admin-key-12345")
 
 
 # ---------------------------------------------------------------------------
