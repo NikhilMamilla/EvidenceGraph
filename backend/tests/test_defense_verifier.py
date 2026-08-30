@@ -191,6 +191,20 @@ class TestGoldenBaseline:
         assert macro_f1 >= 0.78, f"deterministic macro-F1 {macro_f1:.3f} below floor"
         assert acc > b1_accuracy, "deterministic evaluator must beat majority-class baseline"
 
+    def test_seed_is_idempotent(self, db):
+        """Re-seeding must not raise (the entrypoint runs it on every boot)."""
+        first = seed_golden_cases(db)
+        second = seed_golden_cases(db)
+        assert first["cases_created"] == 20
+        assert second["cases_created"] == 0
+        assert db.query(DefenseCase).count() == 20
+        assert (
+            db.query(EvaluationDataset)
+            .filter(EvaluationDataset.dataset_version == EG_DEFENSE_V1_0)
+            .count()
+            == 1
+        )
+
     def test_contradiction_recall_is_total(self, db):
         """Every golden case whose ground truth is CONTRADICTED is caught.
 

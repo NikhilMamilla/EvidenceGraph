@@ -681,7 +681,7 @@ def seed_golden_cases(db: Session) -> dict[str, Any]:
             db.add(label)
             created_labels += 1
 
-    # Create dataset manifest
+    # Create / refresh the dataset manifest (idempotent — safe to re-run).
     label_counts = {}
     source_counts = {}
     split_counts = {}
@@ -690,18 +690,32 @@ def seed_golden_cases(db: Session) -> dict[str, Any]:
         source_counts[gc.source] = source_counts.get(gc.source, 0) + 1
         split_counts[gc.split] = split_counts.get(gc.split, 0) + 1
 
-    dataset = EvaluationDataset(
-        dataset_version=EG_DEFENSE_V1_0,
-        total_cases=len(cases),
-        source_counts=source_counts,
-        label_counts=label_counts,
-        split_counts=split_counts,
-        dataset_fingerprint=fingerprint,
-        is_frozen=False,
-        methodology_version=DEFENSE_VERIFICATION_METHODOLOGY_V1,
-        description="Phase 21 golden test cases for delivery dispute defense verification.",
+    dataset = (
+        db.query(EvaluationDataset)
+        .filter(EvaluationDataset.dataset_version == EG_DEFENSE_V1_0)
+        .first()
     )
-    db.add(dataset)
+    if dataset is None:
+        dataset = EvaluationDataset(
+            dataset_version=EG_DEFENSE_V1_0,
+            total_cases=len(cases),
+            source_counts=source_counts,
+            label_counts=label_counts,
+            split_counts=split_counts,
+            dataset_fingerprint=fingerprint,
+            is_frozen=False,
+            methodology_version=DEFENSE_VERIFICATION_METHODOLOGY_V1,
+            description="Phase 21 golden test cases for delivery dispute defense verification.",
+        )
+        db.add(dataset)
+    elif not dataset.is_frozen:
+        # Not frozen yet: keep the manifest in step with the case definitions.
+        dataset.total_cases = len(cases)
+        dataset.source_counts = source_counts
+        dataset.label_counts = label_counts
+        dataset.split_counts = split_counts
+        dataset.dataset_fingerprint = fingerprint
+        dataset.methodology_version = DEFENSE_VERIFICATION_METHODOLOGY_V1
 
     db.commit()
 
