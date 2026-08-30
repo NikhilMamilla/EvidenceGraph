@@ -63,3 +63,12 @@ async function request<T>(
 
 export const httpGet = <T>(path: string): Promise<ApiResult<T>> =>
   request<T>(path, { method: 'GET' })
+
+export const httpPost = <T, B = unknown>(
+  path: string,
+  body?: B
+): Promise<ApiResult<T>> =>
+  request<T>(path, {
+    method: 'POST',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
