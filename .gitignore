@@ -54,10 +54,21 @@ Thumbs.db
 *.swp
 *.swo
 
-# IDE
+# IDE / AI tooling — personal, not project
 .vscode/
 .idea/
 *.iml
+.kiro/
+.freebuff/
+opencode.json
+
+# Local webhook tunnels (download on demand, never commit the binaries)
+cloudflared
+cloudflared.exe
+ngrok
+ngrok.exe
+ngrok.zip
+*.ngrok.yml
 
 # Alembic
 # (keep alembic/versions tracked, but ignore pycache inside)
