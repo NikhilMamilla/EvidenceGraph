@@ -164,24 +164,15 @@ holds placeholders only. Rotate any secret that has been shared or reused.
 
 ## Run
 
-### Local development
+### One command (Docker)
 
 ```bash
-# infra
-docker-compose up -d redis
-
-# backend
-cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1          # Windows PowerShell
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-
-# frontend
-cd frontend
-npm install
-npm run dev
+cp .env.example .env        # then set DATABASE_URL to your Supabase URI
+docker compose up --build
 ```
+
+The backend runs `alembic upgrade head` and seeds the 20 golden defense cases on
+first boot; nginx serves the SPA and proxies `/api/*` to the backend.
 
 | Service | URL |
 |---|---|
@@ -189,11 +180,18 @@ npm run dev
 | Backend | http://localhost:8000 |
 | API docs | http://localhost:8000/docs |
 
-### Docker Compose (full stack)
+### Local dev (hot reload)
 
 ```bash
-docker-compose up --build          # needs .env with a Supabase DATABASE_URL
+docker compose up -d redis
+cd backend && python -m venv .venv && .venv\Scripts\Activate.ps1 && pip install -r requirements.txt
+alembic upgrade head && uvicorn app.main:app --reload --port 8000
+# new terminal:
+cd frontend && npm install && npm run dev
 ```
+
+**Full command list, manual test walkthrough, and troubleshooting:
+[`docs/RUN.md`](docs/RUN.md).**
 
 ---
 

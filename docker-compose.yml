@@ -1,16 +1,16 @@
 # =============================================================================
 # EvidenceGraph — Docker Compose
-# Supabase Migration: local postgres removed, backend connects to Supabase.
-# =============================================================================
-# Services: redis, backend, frontend
-# Database: Supabase PostgreSQL (external, SSL-secured)
-# All secrets come from the .env file — never hardcoded here.
+# One command:  docker compose up --build
+#   frontend  -> http://localhost:5173   (nginx serves the SPA + proxies /api)
+#   backend   -> http://localhost:8000   (FastAPI; runs migrations on start)
+#   API docs  -> http://localhost:8000/docs
+# Database: Supabase PostgreSQL (external, SSL). All secrets come from .env.
 # =============================================================================
 
 services:
 
   # ---------------------------------------------------------------------------
-  # Redis — local cache layer
+  # Redis — cache + background webhook queue
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7.2-alpine
@@ -31,9 +31,9 @@ services:
       - evidencegraph_net
 
   # ---------------------------------------------------------------------------
-  # Backend — FastAPI → Supabase PostgreSQL + Redis
-  # DATABASE_URL comes from .env (Supabase connection string with SSL)
-  # Do NOT override DATABASE_URL here — let it come through from .env
+  # Backend — FastAPI -> Supabase PostgreSQL + Redis
+  # DATABASE_URL and the RAZORPAY_* / AI_* vars come from .env (env_file).
+  # entrypoint.sh runs `alembic upgrade head` before starting uvicorn.
   # ---------------------------------------------------------------------------
   backend:
     build:
@@ -44,29 +44,35 @@ services:
     env_file:
       - .env
     environment:
-      # Redis uses the Docker service name inside the compose network
+      # Redis resolves to the compose service name inside the network
       REDIS_URL: redis://redis:6379/0
+      # Seed the 20 golden delivery-dispute cases on first boot (idempotent).
+      # Set SEED_GOLDEN_CASES=false in .env to skip.
+      SEED_GOLDEN_CASES: ${SEED_GOLDEN_CASES:-true}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health/live || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/v1/health/live || exit 1"]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 20s
+      retries: 10
+      start_period: 60s
     networks:
       - evidencegraph_net
 
   # ---------------------------------------------------------------------------
-  # Frontend — React + Vite (served via nginx)
+  # Frontend — React + Vite build, served by nginx (proxies /api -> backend)
   # ---------------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Empty -> the bundle calls same-origin '/api/*'; nginx proxies it.
+        VITE_API_BASE_URL: ""
     container_name: evidencegraph_frontend
     restart: unless-stopped
     ports:
@@ -74,19 +80,19 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - evidencegraph_net
 
-# =============================================================================
-# Volumes
-# =============================================================================
 volumes:
   redis_data:
     driver: local
 
-# =============================================================================
-# Networks
-# =============================================================================
 networks:
   evidencegraph_net:
     driver: bridge

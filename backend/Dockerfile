@@ -40,6 +40,9 @@ COPY --from=builder /install /usr/local
 # Copy application source
 COPY . .
 
+# Normalise entrypoint line endings (Windows checkouts) and make it executable
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
+
 # Non-root user for security
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
@@ -47,5 +50,5 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Start server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Migrations run on start, then uvicorn (see entrypoint.sh)
+ENTRYPOINT ["./entrypoint.sh"]

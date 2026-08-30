@@ -11,12 +11,13 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --frozen-lockfile
+RUN npm ci
 
 COPY . .
 
-# VITE_API_BASE_URL is injected at build time via docker-compose environment
-ARG VITE_API_BASE_URL=http://localhost:8000
+# Empty by default: nginx reverse-proxies same-origin '/api/*' to the backend,
+# so the bundle should call relative URLs. Override only for a split deployment.
+ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 RUN npm run build
