@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.core.config import get_settings
 from app.db.session import Base
+import app.models  # noqa: F401
 
 # Alembic Config object — provides access to alembic.ini values
 config = context.config
@@ -30,7 +31,7 @@ if config.config_file_name is not None:
 # Inject the runtime DATABASE_URL so Alembic uses the same connection string
 # as the application — never hardcoded in alembic.ini
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 # MetaData for autogenerate support.
 # All future models must import Base from app.db.session and register here.

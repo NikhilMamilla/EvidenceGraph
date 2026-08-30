@@ -12,8 +12,8 @@ implemented at this stage.
 |------------------|-----------------------------|----------------------------------|
 | Frontend         | React 19 + Vite + Tailwind  | System status UI                 |
 | Backend API      | FastAPI 0.115 + Python 3.12 | Health endpoints, structured API |
-| PostgreSQL       | postgres:16.3-alpine        | Primary datastore (empty schema) |
-| Redis            | redis:7.2-alpine            | Cache / pub-sub layer (unused)   |
+| PostgreSQL       | Supabase PostgreSQL         | Primary datastore (external, SSL)|
+| Redis            | redis:7.2-alpine            | Cache / background job queue     |
 
 ## Endpoints
 

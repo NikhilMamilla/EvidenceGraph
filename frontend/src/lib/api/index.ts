@@ -3,4 +3,5 @@
  */
 
 export * from './health'
+export * from './operations'
 export * from './types'
