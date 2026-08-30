@@ -7,7 +7,10 @@ Scientifically evaluate whether a real LLM improves the EvidenceGraph defense ve
 ## Research Question
 
 Does adding a real LLM semantic layer improve claim extraction and evidence matching compared to:
-- Phase 21 deterministic baseline (80% accuracy, 74.7% macro F1)
+- Phase 21 deterministic baseline. REF_EVAL_V1: 80% accuracy / 74.7% macro-F1.
+  REF_EVAL_V2 (structural value semantics — entity match + conclusive delivery
+  status): 90% accuracy / 88.5% macro-F1, zero false-SUPPORTED, 100%
+  contradiction recall on the 20-case golden set.
 - Phase 22 test-AI provider
 
 ## Architecture
