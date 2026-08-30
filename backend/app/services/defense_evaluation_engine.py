@@ -26,7 +26,10 @@ from app.models.defense_case import DefenseCase
 from app.models.evaluation_label import EvaluationLabel
 from app.models.evaluation_dataset import EvaluationDataset
 from app.models.evaluation_run import EvaluationRun
-from app.services.defense_reference_evaluator import DefenseReferenceEvaluator
+from app.services.defense_reference_evaluator import (
+    REF_EVAL_METHODOLOGY_VERSION,
+    DefenseReferenceEvaluator,
+)
 
 ALL_LABELS = [
     VerificationLabel.SUPPORTED,
@@ -137,7 +140,9 @@ class DefenseEvaluationEngine:
         run = EvaluationRun(
             run_id=run_id,
             dataset_version=dataset_version,
-            methodology_version=DEFENSE_VERIFICATION_METHODOLOGY_V1,
+            methodology_version=(
+                f"{DEFENSE_VERIFICATION_METHODOLOGY_V1}+{REF_EVAL_METHODOLOGY_VERSION}"
+            ),
             status="COMPLETED",
             total_cases=len(cases),
             evaluated_cases=len(predictions),
@@ -154,6 +159,7 @@ class DefenseEvaluationEngine:
         return {
             "run_id": run_id,
             "dataset_version": dataset_version,
+            "reference_evaluator_version": REF_EVAL_METHODOLOGY_VERSION,
             "total_cases": len(cases),
             "evaluated_cases": len(predictions),
             "correct_predictions": correct,
