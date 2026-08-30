@@ -81,11 +81,20 @@ class Settings(BaseSettings):
     log_level: LogLevel = LogLevel.info
 
     # ------------------------------------------------------------------
-    # Razorpay — OPTIONAL in Phase 1
+    # Razorpay — OPTIONAL in Phase 1, REQUIRED in Phase 2
     # ------------------------------------------------------------------
+    razorpay_mode: str = "test"   # "test" or "live"
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
+
+    # ------------------------------------------------------------------
+    # Audit-trace administration — Phase 10
+    # Restricted surfaces (full traces, verification, replay) require this
+    # key via the X-API-Key header. Empty means restricted endpoints fail
+    # closed (503).
+    # ------------------------------------------------------------------
+    admin_api_key: str = ""
 
     # ------------------------------------------------------------------
     # Derived helpers

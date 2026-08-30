@@ -20,6 +20,7 @@ from app.core.errors import unhandled_exception_handler
 from app.core.logging import configure_logging
 from app.core.middleware import CorrelationIDMiddleware
 from app.services.redis_client import close_redis_connection
+from app.services.webhook_worker import start_worker, stop_worker
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -56,9 +57,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         logger.warning("DB startup verification skipped: %s", exc)
 
+    # Start background webhook worker
+    start_worker()
+    logger.info("Webhook background worker started")
+
     yield
 
     logger.info("Shutting down EvidenceGraph API")
+    stop_worker()
     close_redis_connection()
 
 
@@ -88,6 +94,12 @@ def create_app() -> FastAPI:
     )
 
     app.add_exception_handler(Exception, unhandled_exception_handler)  # type: ignore[arg-type]
+    
+    # Root liveness alias
+    @app.get("/health", tags=["health"], summary="Root liveness check")
+    async def root_health():
+        return {"status": "ok", "service": settings.app_name}
+
     app.include_router(v1_router)
 
     return app
