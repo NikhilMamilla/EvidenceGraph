@@ -73,7 +73,6 @@ function ThreeWayComparison() {
   const ta = data.track_a_deterministic || {}
   const tb = data.track_b_test_ai || {}
   const tc = data.track_c_real_llm || {}
-  const comp = data.comparison || {}
 
   return (
     <div className="space-y-4">
@@ -148,7 +147,7 @@ export default function DefenseVerification() {
   const [verifying, setVerifying] = useState(false)
   const [result, setResult] = useState<VerificationResult | null>(null)
   const [aiStatus, setAiStatus] = useState<any>(null)
-  const [showDemo, setShowDemo] = useState(false)
+  const [, setShowDemo] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {

@@ -601,12 +601,7 @@ export function PaymentInspector() {
   const [evolutionChanges, setEvolutionChanges] = useState<ChangeRecord[]>([])
   const [dimensionFilter, setDimensionFilter] = useState<string>('ALL')
   const [recomputeLoading, setRecomputeLoading] = useState(false)
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
   const [showMobileList, setShowMobileList] = useState(true)
-
-  const toggleSection = (key: string) => {
-    setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))
-  }
 
   useEffect(() => {
     fetchPayments()
