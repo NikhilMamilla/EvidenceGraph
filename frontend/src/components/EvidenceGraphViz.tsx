@@ -759,7 +759,7 @@ export function EvidenceGraphViz() {
   return (
     <div className="space-y-6">
       {/* header */}
-      <div className="glass-card-elevated p-6 sm:p-8">
+      <div className="glass-card-elevated premium-ring p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="neo-pressed p-2.5 rounded-xl" style={{ background: withAlpha(P.edgeStrong, 0.12) }}>
             <GitBranch className="w-5 h-5" style={{ color: P.edgeStrong }} />
@@ -808,8 +808,8 @@ export function EvidenceGraphViz() {
       {/* canvas */}
       <div
         ref={wrapRef}
-        className={`glass-card overflow-hidden relative ${
-          expanded ? 'fixed inset-3 z-50 rounded-2xl' : ''
+        className={`viz-frame glass-card relative ${
+          expanded ? 'fixed inset-3 z-50' : ''
         }`}
       >
         <div className="absolute top-4 right-4 z-20 flex gap-2">
