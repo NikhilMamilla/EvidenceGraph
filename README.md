@@ -94,30 +94,32 @@ policy). Small set, wide confidence intervals — see [Limitations](#limitations
 
 ## How it works
 
-```
-Merchant defense text  +  dispute reason  +  evidence items
-        │
-        ▼
-┌──────────────────────────────────────────────┐
-│  AI SEMANTIC LAYER          (optional — AI_ENABLED=true)      │
-│  • claim extraction from free text (LLM)                     │
-│  • evidence-relevance proposals                              │
-│  • hallucinated-ID rejection · prompt-injection isolation    │
-│  providers:  test-stub (default) · anthropic · mistral · openai │
-└───────────────┬──────────────────────────────────────────────┘
-                ▼   (structured claims + candidate evidence links)
-┌──────────────────────────────────────────────┐
-│  EVIDENCEGRAPH — DETERMINISTIC, THE AUTHORITY                │
-│  1. contradiction detection      (authoritative-source conflict)  │
-│  2. provenance filter            (unbroken lineage to a real event) │
-│  3. structural value semantics   (entity match + conclusive status) │
-│  4. coverage / completeness      (required evidence types present)  │
-│  5. source independence          (distinct underlying sources)      │
-│  + SHA-256 decision trace · deterministic point-in-time replay      │
-└───────────────┬──────────────────────────────────────────────┘
-                ▼
-   SUPPORTED / INSUFFICIENT_EVIDENCE / CONTRADICTED / UNKNOWN
-   + explanation + evidence IDs + audit trace
+```mermaid
+flowchart TD
+    IN["Merchant defense text&nbsp; + &nbsp;dispute reason&nbsp; + &nbsp;evidence items"]
+    IN --> GATE{"AI_ENABLED ?"}
+    GATE -- "false · default" --> DET
+    GATE -- "true" --> AI
+
+    subgraph AI ["AI semantic layer · advisory only · pluggable provider"]
+        direction TB
+        A1["Claim extraction<br>from free text"] --> A2["Evidence-relevance<br>proposals"] --> A3["Hallucinated-ID rejection<br>prompt-injection isolation"]
+    end
+    AI -- "structured claims&nbsp;+&nbsp;candidate evidence links" --> DET
+
+    subgraph DET ["EvidenceGraph — deterministic · final authority"]
+        direction TB
+        C1["1 · Contradiction detection<br><i>authoritative-source conflict</i>"]
+        C2["2 · Provenance filter<br><i>unbroken lineage to a real event</i>"]
+        C3["3 · Structural value semantics<br><i>entity match + conclusive status</i>"]
+        C4["4 · Coverage / completeness<br><i>required evidence types present</i>"]
+        C5["5 · Source independence<br><i>distinct underlying sources</i>"]
+        C1 --> C2 --> C3 --> C4 --> C5
+    end
+
+    C1 -. "conflict → short-circuit" .-> V
+    C5 --> TRACE["+ SHA-256 decision trace · point-in-time replay"]
+    TRACE --> V(["<b>SUPPORTED</b> · <b>INSUFFICIENT_EVIDENCE</b> · <b>CONTRADICTED</b> · <b>UNKNOWN</b><br>+ explanation + supporting / contradicting evidence IDs"])
 ```
 
 The checks run **in that order**, and order matters: a contradiction short-circuits
@@ -125,18 +127,13 @@ everything; a fabricated document is filtered by provenance *before* it can
 "cover" a required evidence type; delivery proof only counts if its value is a
 conclusive completed delivery (`in_transit` / `pending` / `failed` → not support).
 
-```
-┌─────────────────┐    HTTP     ┌──────────────────────────┐
-│  React frontend │ ──────────▶ │  FastAPI backend         │
-│  Vite + TS      │   /api/v1   │  deterministic engine     │
-│  nginx (Docker) │ ◀────────── │  + optional AI layer      │
-└─────────────────┘             └───────────┬──────────────┘
-                        ┌──────────────────┼──────────────────┐
-                        ▼                                     ▼
-              ┌──────────────────┐                  ┌──────────────┐
-              │ Supabase         │                  │  Redis        │
-              │ PostgreSQL (SSL) │                  │  webhook queue│
-              └──────────────────┘                  └──────────────┘
+```mermaid
+flowchart LR
+    U(["Browser"]) --> FE["React · Vite · TS<br>nginx — Docker"]
+    FE -- "HTTP · /api/v1" --> BE["FastAPI backend<br>deterministic engine&nbsp;+&nbsp;optional AI layer"]
+    BE --> DB[("Supabase PostgreSQL<br>SSL · session pooler")]
+    BE --> R[("Redis<br>webhook queue&nbsp;+&nbsp;worker")]
+    BE -. "AI_ENABLED=true" .-> LLM["LLM provider<br>anthropic · mistral · openai"]
 ```
 
 The browser never touches the database — every read goes through the backend.
