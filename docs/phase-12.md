@@ -158,7 +158,7 @@ leak into historical calculations.
 
 ## 8. Implementation
 
-**Service:** `app/services/investigation_service.py` (1247 lines)
+**Service:** `app/services/investigation_service.py`
 **Router:** `app/api/v1/investigation.py`
 **Schemas:** `app/schemas/investigation.py`
 **Types:** `app/models/investigation_types.py`
@@ -167,17 +167,17 @@ leak into historical calculations.
 
 ## 9. Test Suite
 
-File: `tests/test_investigation.py`
+File: `tests/test_investigation.py` — 22 tests:
 
-**20 tests, all passing:**
-
-| Class | Tests |
+| Class | Coverage |
 |---|---|
-| TestDirectNeighborhoodAndTraversal | 1–7: direct neighborhood, n-hop traversal, cycle detection, node/edge limits, duplicate elimination |
-| TestPathsAndProvenance | 8–12: evidence provenance, claim support, dependencies, corroboration explanation, conflict path |
-| TestTemporalAsOfQueries | 13–14: as-of historical query, future evidence exclusion |
-| TestIntegrityAndStateChangeLinkage | 15–16: integrity snapshot linkage, temporal state change linkage |
-| TestSearchAndSecurity | 17–20: exact identifier search, API status codes, sensitive-data filtering, path search |
+| TestGraph | neighbourhood + node types, depth clamping, unique ids, reciprocal-relationship termination, node-limit truncation, `as_of` future exclusion, `node_types` filter, no `raw_payload` in nodes, unknown-payment error |
+| TestPath | payment→evidence path, zero-length same-node, missing-node not-found |
+| provenance | full EVIDENCE→PAYMENT_EVENT→WEBHOOK_EVENT→PAYMENT chain, missing-evidence error |
+| claim support | independent-vs-dependent breakdown |
+| dependencies | direct + indirect BFS |
+| conflict path | CONFLICT→CLAIM_A/CLAIM_B→EVIDENCE |
+| TestSearch | cross-entity results, evidence/claim search, no PII/secrets, limit respected |
 
 ---
 
@@ -190,8 +190,29 @@ File: `tests/test_investigation.py`
 
 ---
 
-## 11. Known Limitations
+## 11. Implementation status
 
-- Investigation graph is computed on demand (not pre-materialised). For very large payments with many observations, traversal may approach node/edge limits.
-- The path search is BFS over the adjacency built during `build_payment_graph`, not over the full database graph. Path searches between nodes in different payment graphs are not supported.
-- `as_of` filtering applies to evidence `observed_at` only; integrity snapshots and state changes are not filtered by `as_of` in the current implementation.
+The engine in `app/services/investigation_service.py` is a **real BFS traversal**
+over the persisted relations (not a stub). It builds `pay → order / customer /
+event / conflict / snapshot / state-change` at depth 1, `event → evidence /
+webhook` and `conflict → claims` at depth 2, and `evidence → source / claim /
+related-evidence` at depth 3, with a visited set for cycle safety, `max_nodes` /
+`max_edges` bounds reported as `TRAVERSAL_LIMIT_REACHED`, node-id and
+edge-tuple de-duplication, `as_of` exclusion of future evidence, and
+`node_types` / `relationship_types` filters. Shortest-path is BFS over that
+graph's adjacency. Provenance, claim-support, dependency-chain, conflict-path
+and cross-table entity search are all implemented against real data.
+
+Verified by `tests/test_investigation.py` (22 tests): traversal, depth clamping,
+cycle termination, node-limit truncation, `as_of` filtering, type filtering,
+**sensitive-data stripping** (no `raw_payload` / `payload_hash` / PII in any
+node), path-finding, provenance chains, claim independence, dependency BFS,
+conflict paths, and entity search.
+
+### Known limitations
+
+- Investigation graph is computed on demand (not pre-materialised).
+- Path search is scoped to a single payment's graph — paths between nodes in
+  different payment graphs are not supported.
+- `as_of` filtering applies to evidence `observed_at`; integrity snapshots and
+  state changes are not `as_of`-filtered.

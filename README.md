@@ -91,7 +91,7 @@ The browser never connects to the database — all access goes through the backe
 
 | Area | State |
 |---|---|
-| Evidence platform (ingestion → facts → reconciliation → coverage → reliability → integrity → traces → replay → operational monitoring) | **Built.** ~30k LOC, 445 passing tests. |
+| Evidence platform (ingestion → facts → reconciliation → coverage → reliability → integrity → traces → replay → operational monitoring) | **Built.** ~31k LOC, 494 passing tests. |
 | Defense verification foundation — models, deterministic reference evaluator, 20 golden test cases, evaluation harness (confusion matrix, macro-F1, per-class P/R, frozen-split protocol) | **Built.** |
 | AI semantic layer — claim extraction + evidence matching, deterministic override policy, prompt-injection isolation | **Built.** Providers: native Claude (`anthropic`), OpenAI-compatible (`openai`), and a deterministic test stub. |
 | Real-LLM three-way evaluation (deterministic vs test-AI vs real-LLM) with safety metrics (false-supported rate, contradiction-miss rate) | **Wired.** Runs against a real key; reports `REAL_LLM_NOT_CONFIGURED` until `AI_ENABLED=true` + a key is set. |
@@ -121,8 +121,6 @@ The browser never connects to the database — all access goes through the backe
 - No automated submission to card networks / issuers.
 - No LLM fine-tuning — prompting only.
 - No authentication / RBAC beyond an admin key for restricted trace endpoints.
-- The Phase 12 graph-investigation engine is currently a thin stub;
-  `investigation_center` is the live path.
 
 ---
 
@@ -201,7 +199,7 @@ cd frontend && npm install && npm run dev
 # backend
 cd backend
 .venv\Scripts\Activate.ps1
-python -m pytest -q                 # 445 tests
+python -m pytest -q                 # 494 tests
 
 # frontend
 cd frontend
