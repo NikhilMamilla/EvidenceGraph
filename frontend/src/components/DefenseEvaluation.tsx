@@ -358,7 +358,7 @@ export default function DefenseEvaluation() {
       <div className="glass-card p-4 text-xs opacity-50 space-y-1">
         <div>Methodology: DEFENSE_VERIFICATION_METHODOLOGY_V1</div>
         <div>Scope: DELIVERY_NOT_RECEIVED disputes only</div>
-        <div>AI: NOT IMPLEMENTED (deterministic reference baseline only)</div>
+        <div>This tab: deterministic reference baseline. AI semantic layer + three-way eval → AI Verify tab.</div>
         <div>Domain: EvidenceGraph — Pre-Submission Chargeback Defense Verifier</div>
       </div>
     </div>
