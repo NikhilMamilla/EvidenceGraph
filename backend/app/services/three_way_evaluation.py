@@ -4,7 +4,7 @@ Phase 23 — Three-Way Evaluation Engine.
 Compares:
   TRACK_A: Deterministic EvidenceGraph baseline
   TRACK_B: TestAIProvider + EvidenceGraph
-  TRACK_C: real LLM (Anthropic or OpenAI-compatible) + EvidenceGraph
+  TRACK_C: real LLM (Anthropic / Mistral / OpenAI-compatible) + EvidenceGraph
 
 With emphasis on safety metrics:
   - FALSE_SUPPORTED_RATE
@@ -131,7 +131,7 @@ class ThreeWayEvaluator:
         return self._compute_metrics(predictions, "TRACK_B_TEST_AI")
 
     def _run_track_c(self, db: Session, cases: list) -> dict[str, Any]:
-        """Track C: real LLM (Anthropic or OpenAI-compatible) + EvidenceGraph."""
+        """Track C: real LLM (Anthropic / Mistral / OpenAI-compatible) + EvidenceGraph."""
         from app.services.ai_config import get_ai_config, get_ai_provider, is_real_llm_configured
 
         config = get_ai_config()

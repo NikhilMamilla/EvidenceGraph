@@ -69,7 +69,7 @@ class DefenseVerifier:
         """
         Initialize the AI provider based on configuration.
 
-        AI_PROVIDER selects test / openai / anthropic. Real providers
+        AI_PROVIDER selects test / openai / anthropic / mistral. Real providers
         self-report AI_UNAVAILABLE when no key is set — the deterministic
         evaluator still runs and retains final authority regardless.
         """

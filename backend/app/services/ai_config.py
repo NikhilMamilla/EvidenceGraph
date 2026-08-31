@@ -16,7 +16,7 @@ class AIConfig:
     """AI provider configuration from environment variables."""
 
     enabled: bool = False
-    provider: str = "test"  # "test" | "openai" | "anthropic" | "disabled"
+    provider: str = "test"  # "test" | "openai" | "anthropic" | "mistral" | "disabled"
     model: str = "gpt-4o-mini"  # used by the OpenAI-compatible provider only
     timeout_seconds: int = 30
     max_input_tokens: int = 4096
@@ -53,6 +53,7 @@ def get_ai_provider(config: AIConfig | None = None):
 
     - provider == "anthropic"  -> AnthropicLLMProvider (native Claude SDK)
     - provider == "openai"     -> RealLLMProvider (OpenAI-compatible API)
+    - provider == "mistral"    -> MistralLLMProvider (Mistral OpenAI-compatible API)
     - anything else / disabled -> TestAIProvider (deterministic, non-LLM)
 
     Real providers self-report ``AI_UNAVAILABLE`` when no credential is
@@ -64,6 +65,11 @@ def get_ai_provider(config: AIConfig | None = None):
         from app.services.ai_anthropic_provider import AnthropicLLMProvider
 
         return AnthropicLLMProvider()
+
+    if config.enabled and config.provider == "mistral":
+        from app.services.ai_mistral_provider import MistralLLMProvider
+
+        return MistralLLMProvider()
 
     if config.enabled and config.provider == "openai":
         from app.services.ai_real_provider import RealLLMProvider
@@ -78,7 +84,7 @@ def get_ai_provider(config: AIConfig | None = None):
 def is_real_llm_configured(config: AIConfig | None = None) -> bool:
     """True only when a real LLM provider is selected AND has a usable credential."""
     config = config or get_ai_config()
-    if not config.enabled or config.provider not in ("openai", "anthropic"):
+    if not config.enabled or config.provider not in ("openai", "anthropic", "mistral"):
         return False
     provider = get_ai_provider(config)
     return bool(getattr(provider, "_is_configured", lambda: False)())

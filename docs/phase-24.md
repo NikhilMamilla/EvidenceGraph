@@ -19,7 +19,8 @@ deterministic core against the failure modes in the evaluation-gate catalog.
 | Change | File |
 |---|---|
 | Native Claude provider (Anthropic SDK), interface-compatible with the OpenAI-compatible one | `app/services/ai_anthropic_provider.py` (new) |
-| Provider factory — selects `test` / `openai` / `anthropic` by `AI_PROVIDER`; `is_real_llm_configured()` | `app/services/ai_config.py` |
+| Mistral provider — Mistral's OpenAI-compatible endpoint, subclasses `RealLLMProvider` (reuses the prompt/parse pipeline), reads `MISTRAL_API_KEY` / `AI_MISTRAL_MODEL` | `app/services/ai_mistral_provider.py` (new) |
+| Provider factory — selects `test` / `openai` / `anthropic` / `mistral` by `AI_PROVIDER`; `is_real_llm_configured()` | `app/services/ai_config.py` |
 | Fixed: `DefenseVerifier._init_provider()` always fell back to the test stub | `app/services/defense_verifier.py` |
 | Track C uses whichever real provider is configured | `app/services/three_way_evaluation.py` |
 | `/defense/ai/status` reports `provider_name`, `model`, `real_llm_ready` (never the key) | `app/api/v1/defense_verification.py` |

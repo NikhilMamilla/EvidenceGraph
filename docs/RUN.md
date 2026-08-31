@@ -113,6 +113,11 @@ AI_PROVIDER=anthropic
 ANTHROPIC_API_KEY=sk-ant-...
 AI_ANTHROPIC_MODEL=claude-haiku-4-5      # cheap; bump to claude-opus-5 for quality
 
+# or, Mistral:
+# AI_PROVIDER=mistral
+# MISTRAL_API_KEY=...
+# AI_MISTRAL_MODEL=mistral-small-latest  # free-tier ok; mistral-large-latest needs a paid tier
+
 # or, OpenAI-compatible:
 # AI_PROVIDER=openai
 # AI_API_KEY=sk-...

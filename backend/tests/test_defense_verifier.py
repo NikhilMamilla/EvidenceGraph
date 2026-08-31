@@ -529,3 +529,75 @@ class TestAIOverridePolicy:
             VerificationLabel.INSUFFICIENT_EVIDENCE,
             VerificationLabel.UNKNOWN,
         }
+
+
+# ===========================================================================
+# 5. PROVIDER SELECTION  — AI_PROVIDER routes to the right adapter, and a
+#    real provider without a usable key degrades safely (never fabricates).
+# ===========================================================================
+class TestProviderSelection:
+    def _cfg(self, provider: str, enabled: bool = True):
+        from app.services.ai_config import AIConfig
+
+        return AIConfig(enabled=enabled, provider=provider)
+
+    def test_mistral_provider_is_selected(self, monkeypatch):
+        monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key-abc123")
+        from app.services.ai_config import get_ai_provider, is_real_llm_configured
+        from app.services.ai_mistral_provider import MistralLLMProvider
+
+        cfg = self._cfg("mistral")
+        provider = get_ai_provider(cfg)
+        assert isinstance(provider, MistralLLMProvider)
+        assert provider.provider_name == "REAL_LLM_MISTRAL"
+        assert provider.base_url == "https://api.mistral.ai/v1"
+        assert provider.model == "mistral-small-latest"
+        assert provider._is_configured() is True
+        assert is_real_llm_configured(cfg) is True
+
+    def test_mistral_model_and_base_url_are_overridable(self, monkeypatch):
+        monkeypatch.setenv("MISTRAL_API_KEY", "k")
+        monkeypatch.setenv("AI_MISTRAL_MODEL", "mistral-small-latest")
+        monkeypatch.setenv("MISTRAL_BASE_URL", "https://proxy.internal/v1")
+        from app.services.ai_mistral_provider import MistralLLMProvider
+
+        p = MistralLLMProvider()
+        assert p.model == "mistral-small-latest"
+        assert p.base_url == "https://proxy.internal/v1"
+
+    def test_mistral_without_key_is_unconfigured(self, monkeypatch):
+        monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+        monkeypatch.delenv("AI_API_KEY", raising=False)
+        from app.services.ai_config import get_ai_provider, is_real_llm_configured
+        from app.services.ai_mistral_provider import MistralLLMProvider
+
+        cfg = self._cfg("mistral")
+        provider = get_ai_provider(cfg)
+        assert isinstance(provider, MistralLLMProvider)
+        assert provider._is_configured() is False
+        assert is_real_llm_configured(cfg) is False
+
+    def test_mistral_rejects_an_anthropic_key(self, monkeypatch):
+        monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+        monkeypatch.setenv("AI_API_KEY", "sk-ant-should-not-count")
+        from app.services.ai_mistral_provider import MistralLLMProvider
+
+        assert MistralLLMProvider()._is_configured() is False
+
+    def test_mistral_unavailable_degrades_to_ai_unavailable(self, monkeypatch):
+        """No key -> no client -> AI_UNAVAILABLE, never a fabricated claim."""
+        monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+        monkeypatch.delenv("AI_API_KEY", raising=False)
+        from app.services.ai_mistral_provider import MistralLLMProvider
+
+        result = MistralLLMProvider().extract_claims("The parcel was delivered on 2026-08-18.")
+        assert result.semantic_status == "AI_UNAVAILABLE"
+        assert result.claims == []
+
+    def test_provider_factory_still_defaults_to_test_stub(self, monkeypatch):
+        monkeypatch.setenv("MISTRAL_API_KEY", "k")
+        from app.services.ai_config import get_ai_provider
+
+        # disabled, or an unknown provider name -> deterministic stub
+        assert type(get_ai_provider(self._cfg("mistral", enabled=False))).__name__ == "TestAIProvider"
+        assert type(get_ai_provider(self._cfg("test"))).__name__ == "TestAIProvider"

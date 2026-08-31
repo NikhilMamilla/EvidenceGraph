@@ -36,6 +36,7 @@ python-json-logger==3.2.0
 # API key is set, so these are only exercised when AI_ENABLED=true.
 anthropic>=1.0.0          # AI_PROVIDER=anthropic  (uses ANTHROPIC_API_KEY)
 openai>=1.54.0            # AI_PROVIDER=openai     (OpenAI-compatible: OpenAI, OpenRouter, Groq, local)
+                         # AI_PROVIDER=mistral    (Mistral's OpenAI-compatible endpoint — same client)
 
 # Testing
 pytest==8.3.4

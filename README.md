@@ -93,7 +93,7 @@ The browser never connects to the database — all access goes through the backe
 |---|---|
 | Evidence platform (ingestion → facts → reconciliation → coverage → reliability → integrity → traces → replay → operational monitoring) | **Built.** ~31k LOC, 494 passing tests. |
 | Defense verification foundation — models, deterministic reference evaluator, 20 golden test cases, evaluation harness (confusion matrix, macro-F1, per-class P/R, frozen-split protocol) | **Built.** |
-| AI semantic layer — claim extraction + evidence matching, deterministic override policy, prompt-injection isolation | **Built.** Providers: native Claude (`anthropic`), OpenAI-compatible (`openai`), and a deterministic test stub. |
+| AI semantic layer — claim extraction + evidence matching, deterministic override policy, prompt-injection isolation | **Built.** Providers: native Claude (`anthropic`), Mistral (`mistral`), OpenAI-compatible (`openai`), and a deterministic test stub. |
 | Real-LLM three-way evaluation (deterministic vs test-AI vs real-LLM) with safety metrics (false-supported rate, contradiction-miss rate) | **Wired.** Runs against a real key; reports `REAL_LLM_NOT_CONFIGURED` until `AI_ENABLED=true` + a key is set. |
 | Frontend | 13 tabs, all wired to real endpoints. The two defence tabs (`Defense Eval`, `AI Verify`) are the Track-02 deliverable; the rest are platform context. |
 
@@ -150,9 +150,11 @@ cp .env.example .env
 | `RAZORPAY_KEY_ID` / `_KEY_SECRET` / `_WEBHOOK_SECRET` | For ingestion | Razorpay **Test Mode** credentials |
 | `ADMIN_API_KEY` | For trace endpoints | `X-API-Key` for restricted audit-trace / replay endpoints |
 | `AI_ENABLED` | No | `false` (default) → deterministic test stub, no network |
-| `AI_PROVIDER` | No | `test` (default) · `anthropic` · `openai` |
+| `AI_PROVIDER` | No | `test` (default) · `anthropic` · `mistral` · `openai` |
 | `ANTHROPIC_API_KEY` | If `AI_PROVIDER=anthropic` | Read directly by the Claude SDK |
 | `AI_ANTHROPIC_MODEL` | No | Default `claude-opus-5`; `claude-haiku-4-5` / `claude-sonnet-5` are cheaper for bulk eval runs |
+| `MISTRAL_API_KEY` | If `AI_PROVIDER=mistral` | Mistral AI key (OpenAI-compatible endpoint); falls back to `AI_API_KEY` |
+| `AI_MISTRAL_MODEL` | No | Default `mistral-small-latest` (free-tier friendly); `mistral-large-latest` needs a paid tier |
 | `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL` | If `AI_PROVIDER=openai` | Any OpenAI-compatible endpoint (OpenAI, OpenRouter, Groq, local) |
 
 **Security:** `.env` is gitignored and must never be committed. `.env.example`
