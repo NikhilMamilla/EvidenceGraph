@@ -83,6 +83,20 @@
   --aurora-1: rgba(108, 92, 231, 0.08);
   --aurora-2: rgba(0, 210, 160, 0.05);
   --aurora-3: rgba(255, 107, 129, 0.03);
+
+  /* Tailwind neutral bridge — DARK = Tailwind's own slate scale (unchanged look) */
+  --tw-slate-50: 248 250 252;
+  --tw-slate-100: 241 245 249;
+  --tw-slate-200: 226 232 240;
+  --tw-slate-300: 203 213 225;
+  --tw-slate-400: 148 163 184;
+  --tw-slate-500: 100 116 139;
+  --tw-slate-600: 71 85 105;
+  --tw-slate-700: 51 65 85;
+  --tw-slate-800: 30 41 59;
+  --tw-slate-900: 15 23 42;
+  --tw-slate-950: 2 6 23;
+  --tw-white: 255 255 255;
 }
 
 /* ── LIGHT THEME ────────────────────────────────────────────── */
@@ -147,6 +161,20 @@
   --aurora-1: rgba(91, 76, 212, 0.06);
   --aurora-2: rgba(0, 184, 148, 0.04);
   --aurora-3: rgba(214, 48, 49, 0.02);
+
+  /* Tailwind neutral bridge — LIGHT = inverted ramp so text-slate-400 etc. stay legible */
+  --tw-slate-50: 248 250 252;
+  --tw-slate-100: 26 29 46;    /* was lightest text -> darkest ink */
+  --tw-slate-200: 40 46 66;
+  --tw-slate-300: 71 85 105;
+  --tw-slate-400: 90 100 128;
+  --tw-slate-500: 122 132 160;
+  --tw-slate-600: 150 160 180;
+  --tw-slate-700: 205 212 224;  /* borders */
+  --tw-slate-800: 226 231 240;  /* light borders / track bg */
+  --tw-slate-900: 240 242 248;  /* pale panel bg */
+  --tw-slate-950: 248 249 252;
+  --tw-white: 26 29 46;         /* text-white is only used on headings -> ink */
 }
 
 /* ── BASE RESET & TYPOGRAPHY ────────────────────────────────── */
