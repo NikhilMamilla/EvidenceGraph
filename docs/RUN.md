@@ -28,10 +28,17 @@ docker compose up --build
 That's it. It will:
 
 1. start Redis
-2. build + start the backend, which runs `alembic upgrade head` and (first boot)
-   seeds the 20 golden defense cases, then starts FastAPI
+2. build + start the backend, which waits for the database, runs
+   `alembic upgrade head` and (first boot) seeds the 20 golden defense cases,
+   then starts FastAPI
 3. build the frontend and serve it through nginx, which proxies `/api/*` to the
    backend
+
+> **If you have run the stack before this version**, the compose network config
+> changed (an MTU pin — see troubleshooting). Run `docker compose down` once
+> before `docker compose up --build` so the old network is recreated cleanly.
+> Skipping this shows up as the backend not resolving `redis`
+> (`Name or service not known`).
 
 | Service   | URL                              |
 |-----------|----------------------------------|
@@ -150,9 +157,11 @@ In Docker: `docker compose run --rm backend python -m pytest -q`.
 
 | Symptom | Fix |
 |---|---|
-| backend restarts in a loop, logs show an alembic / connection error | `DATABASE_URL` in `.env` is wrong or the password isn't URL-encoded |
+| backend logs `SSL SYSCALL error: EOF detected` / `SSL connection has been closed unexpectedly` while the same `DATABASE_URL` works from your host | **MTU.** Docker Desktop (Windows/WSL2) or a VPN routes container traffic over a link smaller than 1500 bytes, so PostgreSQL's TLS handshake packets to Supabase get dropped. The compose network is pinned to **MTU 1400**; if it still fails, lower `com.docker.network.driver.mtu` to `1350` or `1280` in `docker-compose.yml`, then `docker compose down && docker compose up --build`. A `wsl --shutdown` (then restart Docker Desktop) also clears a stale WSL MTU. |
+| backend logs `Name or service not known` for `redis`, `/health/ready` shows `redis: unavailable` | stale Docker network from an earlier run with different network config — `docker compose down` (removes the network) then `docker compose up --build` |
+| backend exits with the `[wait_for_db] GAVE UP` checklist | the database was unreachable for 150s — work through the printed checklist (pooler URI, project not paused, MTU) |
 | `docker compose build` fails in the frontend `tsc -b` step | a TypeScript error — run `cd frontend && npm run build` locally to see it |
-| frontend loads but every panel says "failed to load" | backend isn't healthy yet — wait ~60s on first boot (migrations), or check `docker compose logs backend` |
+| frontend loads but every panel says "failed to load" | backend isn't healthy yet — first boot can take ~1–2 min (cold DB + migrations); check `docker compose logs -f backend` |
 | `/api/v1/defense/...` returns 404 in the browser but works on :8000 | you're on an old frontend image — `docker compose build frontend` |
-| SSE "Live Stream" tab never connects | expected if no webhooks have been ingested; the endpoint is still healthy |
+| "Live Stream" tab shows `Reconnecting…` and never events | expected when no webhooks have been ingested — the header shows `Live · synced Ns ago` from the heartbeat, so the stream is healthy; it just has nothing to show |
 | port 5173 / 8000 already in use | set `FRONTEND_PORT` / `BACKEND_PORT` in `.env` |

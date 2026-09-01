@@ -49,6 +49,17 @@ def get_engine():  # type: ignore[return]
             max_overflow=5,       # allow short bursts up to 8 total
             pool_recycle=300,     # recycle connections every 5 minutes
             echo=False,
+            connect_args={
+                # Fail fast rather than hang if the pooler is unreachable, and
+                # keep idle connections alive so a NAT (Docker Desktop / WSL2)
+                # doesn't silently drop them under us.
+                "connect_timeout": 10,
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10,
+                "keepalives_count": 5,
+                "application_name": "evidencegraph",
+            },
         )
         logger.info("SQLAlchemy engine created (Supabase)")
     return _engine

@@ -1,9 +1,15 @@
 #!/bin/sh
 # =============================================================================
 # EvidenceGraph backend entrypoint
-# Runs schema migrations against the configured database, then starts the API.
+# Wait for the database, run schema migrations, then start the API.
 # =============================================================================
 set -e
+
+echo "[entrypoint] checking database connectivity..."
+if ! python scripts/wait_for_db.py; then
+    echo "[entrypoint] database unreachable — see the checklist above. Exiting."
+    exit 1
+fi
 
 echo "[entrypoint] applying database migrations (alembic upgrade head)..."
 alembic upgrade head

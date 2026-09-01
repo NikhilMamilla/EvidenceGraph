@@ -59,7 +59,8 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
-      start_period: 60s
+      # First boot can wait on a cold Supabase project + run migrations.
+      start_period: 150s
     networks:
       - evidencegraph_net
 
@@ -96,3 +97,10 @@ volumes:
 networks:
   evidencegraph_net:
     driver: bridge
+    driver_opts:
+      # Docker Desktop on Windows/WSL2 (and some VPNs) route container traffic
+      # over a link with a sub-1500 MTU. Left at the 1500 default, PostgreSQL's
+      # TLS handshake packets to Supabase get silently dropped —
+      # "SSL SYSCALL error: EOF detected". 1400 is safe almost everywhere;
+      # drop to 1350 / 1280 if the error persists (see docs/RUN.md).
+      com.docker.network.driver.mtu: "1400"
