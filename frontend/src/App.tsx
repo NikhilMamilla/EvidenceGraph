@@ -14,6 +14,8 @@ import { RevenueIntelligence } from './components/RevenueIntelligence'
 import { MerchantRiskDashboard } from './components/MerchantRiskDashboard'
 import DefenseEvaluation from './components/DefenseEvaluation'
 import DefenseVerification from './components/DefenseVerification'
+import { SectionIntro } from './components/SectionIntro'
+import { SECTION_INTROS } from './content/sectionIntros'
 import {
   Activity,
   Shield,
@@ -160,6 +162,8 @@ function App() {
 
       {/* Main Content */}
       <main className="w-full max-w-6xl mx-auto animate-slide-up" style={{ animationDelay: '0.3s' }}>
+        {SECTION_INTROS[activeTab] && <SectionIntro {...SECTION_INTROS[activeTab]} />}
+
         {activeTab === 'live' && <LiveEventFeed />}
         {activeTab === 'notifications' && <NotificationCenter />}
         {activeTab === 'risk' && <RiskScoreGauge />}

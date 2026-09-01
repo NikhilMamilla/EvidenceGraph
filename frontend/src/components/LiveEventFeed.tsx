@@ -158,9 +158,21 @@ export function LiveEventFeed() {
   const [connected, setConnected] = useState(false)
   const [paused, setPaused] = useState(false)
   const [stats, setStats] = useState({ total: 0, byType: {} as Record<string, number> })
+  const [lastPing, setLastPing] = useState<Date | null>(null)
+  const [now, setNow] = useState(() => Date.now())
   const eventSourceRef = useRef<EventSource | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef(true)
+
+  // 1s ticker so the "synced Ns ago" label stays current
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  const pingAge = lastPing ? Math.max(0, Math.round((now - lastPing.getTime()) / 1000)) : null
+  // stream is healthy if the SSE socket is open AND we've heard from it recently
+  const live = connected && pingAge !== null && pingAge < 20
 
   const connectSSE = useCallback(() => {
     if (eventSourceRef.current) {
@@ -172,10 +184,19 @@ export function LiveEventFeed() {
 
     es.onopen = () => {
       setConnected(true)
+      setLastPing(new Date())
     }
+
+    // Heartbeats are keep-alive only — they never become feed cards, they just
+    // prove the stream is still flowing when nothing else is happening.
+    es.addEventListener('heartbeat', (() => {
+      setConnected(true)
+      setLastPing(new Date())
+    }) as EventListener)
 
     const handleEvent = (eventType: string) => {
       es.addEventListener(eventType, ((e: MessageEvent) => {
+        setLastPing(new Date())
         if (paused) return
         try {
           const data = JSON.parse(e.data)
@@ -208,7 +229,6 @@ export function LiveEventFeed() {
     handleEvent('evidence_observed')
     handleEvent('fact_reconciled')
     handleEvent('conflict_detected')
-    handleEvent('heartbeat')
     handleEvent('error')
 
     es.onerror = () => {
@@ -261,10 +281,17 @@ export function LiveEventFeed() {
           <div className="flex items-center gap-3 ml-12 sm:ml-0">
             {/* Connection Status */}
             <div className={`flex items-center gap-2 text-xs font-semibold ${
-              connected ? 'text-emerald-400' : 'text-rose-400'
+              live ? 'text-emerald-400' : connected ? 'text-amber-400' : 'text-rose-400'
             }`}>
-              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-              {connected ? 'Connected' : 'Reconnecting...'}
+              <div className={`w-2 h-2 rounded-full ${
+                live ? 'bg-emerald-400 animate-pulse' : connected ? 'bg-amber-400' : 'bg-rose-400'
+              }`} />
+              {live ? 'Live' : connected ? 'Idle' : 'Reconnecting…'}
+              {pingAge !== null && (
+                <span className="text-slate-500 font-normal">
+                  · synced {pingAge < 1 ? 'now' : `${pingAge}s ago`}
+                </span>
+              )}
             </div>
 
             <button

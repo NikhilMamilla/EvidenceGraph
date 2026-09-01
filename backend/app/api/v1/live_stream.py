@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import time
+from collections import deque
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
@@ -35,37 +35,61 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# In-memory recent events buffer (last 50 events)
-_recent_events: list[dict] = []
+# In-memory recent events buffer — bounded, so it can never grow unbounded
+# regardless of how long a stream stays open.
 _MAX_RECENT = 50
+_recent_events: "deque[dict]" = deque(maxlen=_MAX_RECENT)
+
+# How often to emit a keep-alive heartbeat, in poll cycles (poll = 3s → ~12s).
+_HEARTBEAT_EVERY = 4
 
 
 def _get_recent_events() -> list[dict]:
-    """Return the recent events buffer."""
-    return list(reversed(_recent_events[-_MAX_RECENT:]))
+    """Return the recent events buffer, newest first."""
+    return list(reversed(_recent_events))
+
+
+def _current_max(db: Session, column) -> int:
+    """Highest id currently in a table (0 if empty). Lets a new stream start
+    'live' — only rows created after connect are pushed."""
+    return int(db.execute(select(func.coalesce(func.max(column), 0))).scalar() or 0)
 
 
 async def _event_generator() -> AsyncGenerator[str, None]:
-    """Generate SSE events by polling the database for new records."""
-    last_event_id = 0
-    last_fact_id = 0
-    last_conflict_id = 0
+    """Generate SSE events by polling the database for new records.
 
+    Each row is emitted exactly once: every source has its own high-water-mark
+    cursor, seeded to the current max id when the stream opens, so the feed
+    shows what happens from now on rather than replaying (or, previously,
+    re-emitting the same rows forever).
+    """
     SessionLocal = get_session_factory()
+
+    # Seed cursors from the current table maxima → a fresh stream is truly "live".
+    _seed = SessionLocal()
+    try:
+        last_event_id = _current_max(_seed, WebhookEvent.id)
+        last_obs_id = _current_max(_seed, EvidenceObservation.internal_id)
+        last_fact_id = _current_max(_seed, EvidenceFact.internal_id)
+        last_conflict_id = _current_max(_seed, EvidenceConflict.internal_id)
+    except Exception:  # noqa: BLE001 — a seeding failure must not kill the stream
+        last_event_id = last_obs_id = last_fact_id = last_conflict_id = 0
+    finally:
+        _seed.close()
+
+    cycle = 0
 
     while True:
         try:
             db = SessionLocal()
             try:
-                # Check for new webhook events
-                new_events = db.execute(
+                # New webhook events
+                for ev in db.execute(
                     select(WebhookEvent)
                     .where(WebhookEvent.id > last_event_id)
                     .order_by(WebhookEvent.id)
                     .limit(10)
-                ).scalars().all()
-
-                for ev in new_events:
+                ).scalars().all():
                     last_event_id = ev.id
                     event_data = {
                         "type": "webhook_event",
@@ -77,20 +101,16 @@ async def _event_generator() -> AsyncGenerator[str, None]:
                         "razorpay_event_id": ev.razorpay_event_id,
                     }
                     _recent_events.append(event_data)
-                    if len(_recent_events) > _MAX_RECENT:
-                        _recent_events.pop(0)
-
                     yield f"event: webhook_event\ndata: {json.dumps(event_data)}\n\n"
 
-                # Check for new evidence observations
-                new_observations = db.execute(
+                # New evidence observations
+                for obs in db.execute(
                     select(EvidenceObservation)
-                    .where(EvidenceObservation.internal_id > last_event_id * 100)  # rough heuristic
-                    .order_by(EvidenceObservation.internal_id.desc())
-                    .limit(5)
-                ).scalars().all()
-
-                for obs in new_observations:
+                    .where(EvidenceObservation.internal_id > last_obs_id)
+                    .order_by(EvidenceObservation.internal_id)
+                    .limit(10)
+                ).scalars().all():
+                    last_obs_id = obs.internal_id
                     obs_data = {
                         "type": "evidence_observation",
                         "evidence_id": obs.internal_id,
@@ -103,15 +123,13 @@ async def _event_generator() -> AsyncGenerator[str, None]:
                     _recent_events.append(obs_data)
                     yield f"event: evidence_observed\ndata: {json.dumps(obs_data)}\n\n"
 
-                # Check for new facts
-                new_facts = db.execute(
+                # New facts
+                for fact in db.execute(
                     select(EvidenceFact)
                     .where(EvidenceFact.internal_id > last_fact_id)
                     .order_by(EvidenceFact.internal_id)
-                    .limit(5)
-                ).scalars().all()
-
-                for fact in new_facts:
+                    .limit(10)
+                ).scalars().all():
                     last_fact_id = fact.internal_id
                     fact_data = {
                         "type": "fact_reconciled",
@@ -125,15 +143,13 @@ async def _event_generator() -> AsyncGenerator[str, None]:
                     _recent_events.append(fact_data)
                     yield f"event: fact_reconciled\ndata: {json.dumps(fact_data)}\n\n"
 
-                # Check for new conflicts
-                new_conflicts = db.execute(
+                # New conflicts
+                for conflict in db.execute(
                     select(EvidenceConflict)
                     .where(EvidenceConflict.internal_id > last_conflict_id)
                     .order_by(EvidenceConflict.internal_id)
-                    .limit(5)
-                ).scalars().all()
-
-                for conflict in new_conflicts:
+                    .limit(10)
+                ).scalars().all():
                     last_conflict_id = conflict.internal_id
                     conflict_data = {
                         "type": "conflict_detected",
@@ -150,19 +166,22 @@ async def _event_generator() -> AsyncGenerator[str, None]:
             finally:
                 db.close()
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning("SSE stream error: %s", e)
             yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
 
-        # Send heartbeat every cycle
-        heartbeat = {
-            "type": "heartbeat",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "recent_count": len(_recent_events),
-        }
-        yield f"event: heartbeat\ndata: {json.dumps(heartbeat)}\n\n"
+        # Keep-alive heartbeat — every few cycles, not every poll, so it does
+        # not drown the feed. Carries only liveness info.
+        if cycle % _HEARTBEAT_EVERY == 0:
+            heartbeat = {
+                "type": "heartbeat",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "buffered": len(_recent_events),
+            }
+            yield f"event: heartbeat\ndata: {json.dumps(heartbeat)}\n\n"
 
-        await asyncio.sleep(3)  # Poll every 3 seconds
+        cycle += 1
+        await asyncio.sleep(3)  # poll every 3 seconds
 
 
 @router.get(
