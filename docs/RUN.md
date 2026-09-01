@@ -132,7 +132,7 @@ Then `POST /api/v1/defense/ai/evaluate` again — Track C now runs the real mode
 ## 4. Tests
 
 ```bash
-# backend  (445 platform + 26 defense-verifier = 471)
+# backend  (500 tests — platform + investigation + defense verifier)
 cd backend && .venv\Scripts\Activate.ps1 && python -m pytest -q
 
 # just the defense verifier (golden baseline + metamorphic + adversarial + AI policy)

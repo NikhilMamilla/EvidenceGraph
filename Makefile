@@ -1,72 +1,63 @@
 # =============================================================================
-# EvidenceGraph — Makefile
-# Phase 1: Production Foundation
+# EvidenceGraph — Makefile  (thin wrappers around docker compose + pytest)
 # =============================================================================
-# All backend commands run inside the .venv virtual environment.
+# The database is external (Supabase). Everything else is containerised.
 #
-# FIRST TIME SETUP:
-#   cd backend
-#   python -m venv .venv
-#   .venv\Scripts\activate        (Windows PowerShell)
+# FIRST TIME:
+#   cp .env.example .env      # then set DATABASE_URL to your Supabase URI
+#   make up                   # build + start the whole stack
+#
+# Local dev (hot reload) needs a backend venv:
+#   cd backend && python -m venv .venv
+#   .venv/Scripts/activate            (Windows)   /   source .venv/bin/activate
 #   pip install -r requirements.txt
 #
-# Usage:
-#   make dev           Start full stack via Docker Compose
-#   make dev-local     Start only infrastructure (postgres + redis)
-#   make stop          Stop Docker Compose stack
-#   make test          Run all tests (backend + frontend)
-#   make test-backend  Run backend tests only
-#   make test-frontend Run frontend tests only
-#   make lint          Run backend linter (ruff)
-#   make health        Check live and readiness endpoints
-#   make logs          Tail Docker Compose logs
-#   make clean         Remove containers and volumes
+# Targets:
+#   make up | up-d | down | logs | ps | restart | clean   docker compose stack
+#   make redis                                             just Redis (local dev)
+#   make test | test-backend | test-frontend | test-defense
+#   make lint | migrate | migrate-new MSG="..."
+#   make health | seed | evaluate
 # =============================================================================
 
-.PHONY: dev dev-local dev-infra stop test test-backend test-frontend \
-        lint health logs clean migrate migrate-new
+.PHONY: up up-d down logs ps restart clean redis \
+        test test-backend test-frontend test-defense \
+        lint migrate migrate-new health seed evaluate
 
-BACKEND_DIR  := backend
-FRONTEND_DIR := frontend
-BACKEND_PORT ?= 8000
-COMPOSE      := docker-compose
-
-# ---------------------------------------------------------------------------
-# Venv-aware Python / pytest
-# ---------------------------------------------------------------------------
-VENV_PYTHON  := $(BACKEND_DIR)/.venv/Scripts/python
-VENV_PYTEST  := $(BACKEND_DIR)/.venv/Scripts/pytest
+BACKEND_DIR   := backend
+FRONTEND_DIR  := frontend
+BACKEND_PORT  ?= 8000
+COMPOSE       := docker compose
+VENV_PYTHON   := $(BACKEND_DIR)/.venv/Scripts/python
+API           := http://localhost:$(BACKEND_PORT)/api/v1
 
 # ---------------------------------------------------------------------------
-# Docker Compose — full stack
+# Docker Compose — full stack (frontend + backend + redis)
 # ---------------------------------------------------------------------------
-dev:
-	@echo "==> Starting full stack via Docker Compose..."
+up:
 	$(COMPOSE) up --build
 
-dev-detached:
+up-d:
 	$(COMPOSE) up --build -d
 
-stop:
+down:
 	$(COMPOSE) down
+
+restart:
+	$(COMPOSE) restart
 
 logs:
 	$(COMPOSE) logs -f
 
+ps:
+	$(COMPOSE) ps
+
 clean:
 	$(COMPOSE) down -v --remove-orphans
 
-# ---------------------------------------------------------------------------
-# Local development (infra in Docker, services run locally)
-# ---------------------------------------------------------------------------
-dev-local: dev-infra
-	@echo ""
-	@echo "Infrastructure is up. Start services manually:"
-	@echo "  Backend:  cd backend && .venv/Scripts/activate && uvicorn app.main:app --reload --port 8000"
-	@echo "  Frontend: cd frontend && npm run dev"
-
-dev-infra:
-	$(COMPOSE) up -d postgres redis
+# Only Redis — for local dev where you run backend/frontend by hand
+redis:
+	$(COMPOSE) up -d redis
 
 # ---------------------------------------------------------------------------
 # Tests
@@ -74,37 +65,42 @@ dev-infra:
 test: test-backend test-frontend
 
 test-backend:
-	@echo "==> Running backend tests (requires .venv activated or venv Python)..."
-	$(VENV_PYTHON) -m pytest $(BACKEND_DIR)/tests/ -v --tb=short
+	$(VENV_PYTHON) -m pytest $(BACKEND_DIR)/tests -q
+
+test-defense:
+	$(VENV_PYTHON) -m pytest $(BACKEND_DIR)/tests/test_defense_verifier.py -q
 
 test-frontend:
-	@echo "==> Running frontend tests..."
 	cd $(FRONTEND_DIR) && npm run test
+
+# In Docker (no local venv needed):
+#   docker compose run --rm backend python -m pytest -q
 
 # ---------------------------------------------------------------------------
 # Lint
 # ---------------------------------------------------------------------------
 lint:
-	@echo "==> Linting backend (ruff — if installed)..."
-	-$(VENV_PYTHON) -m ruff check $(BACKEND_DIR)/app/ $(BACKEND_DIR)/tests/
-	@echo "==> Linting frontend (eslint)..."
+	-$(VENV_PYTHON) -m ruff check $(BACKEND_DIR)/app $(BACKEND_DIR)/tests
 	cd $(FRONTEND_DIR) && npm run lint
 
 # ---------------------------------------------------------------------------
-# Database migrations
+# Database migrations (run from backend/ with the venv active in real use)
 # ---------------------------------------------------------------------------
 migrate:
-	$(VENV_PYTHON) -m alembic -c $(BACKEND_DIR)/alembic.ini upgrade head
+	cd $(BACKEND_DIR) && .venv/Scripts/python -m alembic upgrade head
 
 migrate-new:
-	$(VENV_PYTHON) -m alembic -c $(BACKEND_DIR)/alembic.ini revision --autogenerate -m "$(MSG)"
+	cd $(BACKEND_DIR) && .venv/Scripts/python -m alembic revision --autogenerate -m "$(MSG)"
 
 # ---------------------------------------------------------------------------
-# Health checks
+# Convenience API calls (stack must be up)
 # ---------------------------------------------------------------------------
 health:
-	@echo "==> Checking /api/v1/health/live ..."
-	@curl -sf http://localhost:$(BACKEND_PORT)/api/v1/health/live | python -m json.tool || echo "FAILED - is the backend running?"
-	@echo ""
-	@echo "==> Checking /api/v1/health/ready ..."
-	@curl -sf http://localhost:$(BACKEND_PORT)/api/v1/health/ready | python -m json.tool || echo "FAILED - is the backend running?"
+	@curl -sf $(API)/health/live  && echo
+	@curl -sf $(API)/health/ready && echo
+
+seed:
+	curl -X POST $(API)/defense/evaluation/seed
+
+evaluate:
+	curl -X POST $(API)/defense/evaluation/run
