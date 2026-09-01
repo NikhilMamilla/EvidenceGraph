@@ -16,6 +16,7 @@ import DefenseEvaluation from './components/DefenseEvaluation'
 import DefenseVerification from './components/DefenseVerification'
 import { SectionIntro } from './components/SectionIntro'
 import { SECTION_INTROS } from './content/sectionIntros'
+import { AppFooter } from './components/AppFooter'
 import {
   Activity,
   Shield,
@@ -186,16 +187,7 @@ function App() {
         {activeTab === 'defense-ai' && <DefenseVerification />}
       </main>
 
-      {/* Footer */}
-      <footer className="mt-12 sm:mt-16 pb-8 text-center animate-fade-in" style={{ animationDelay: '0.5s' }}>
-        <div className="glass-divider w-32 mx-auto mb-4" />
-        <p
-          className="text-xs font-mono tracking-wider"
-          style={{ color: 'var(--color-text-tertiary)', fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          Phase 22 — AI Defense Verification & EvidenceGraph
-        </p>
-      </footer>
+      <AppFooter />
     </div>
   )
 }

@@ -62,7 +62,15 @@ class RazorpayStatusResponse(BaseModel):
     mode: str
     key_id_prefix: str        # first 8 chars of key ID only
     last_verified_event_at: datetime | None
+    last_event_at: datetime | None = None   # newest persisted webhook_events.received_at
+
+    # Persisted totals — read from webhook_events, so they survive a restart.
     events_received: int
     events_processed: int
+    events_failed: int = 0
+
+    # In-process only (rejected/duplicate deliveries are never stored as rows),
+    # so these are scoped to the current process uptime.
     events_rejected: int
     events_duplicate: int
+    events_received_since_restart: int = 0

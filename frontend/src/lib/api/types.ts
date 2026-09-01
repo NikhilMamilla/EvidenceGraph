@@ -16,10 +16,16 @@ export interface RazorpayStatus {
   mode: string
   key_id_prefix: string
   last_verified_event_at: string | null
+  /** newest persisted webhook_events.received_at */
+  last_event_at: string | null
+  /** persisted totals — survive a backend restart */
   events_received: number
   events_processed: number
+  events_failed: number
+  /** in-process only — scoped to current uptime */
   events_rejected: number
   events_duplicate: number
+  events_received_since_restart: number
 }
 
 export interface ApiError {

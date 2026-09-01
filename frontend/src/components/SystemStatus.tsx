@@ -48,8 +48,8 @@ function StatusDot({ state }: { state: 'good' | 'warn' | 'bad' }) {
 
 /* ── Status Badge ────────────────────────────────────────────────── */
 function StatusBadge({ value, label }: { value: string; label?: string }) {
-  const isGood = ['connected', 'configured', 'receiving'].includes(value)
-  const isWarn = ['waiting', 'not_configured'].includes(value)
+  const isGood = ['connected', 'configured', 'receiving', 'active'].includes(value)
+  const isWarn = ['waiting', 'not_configured', 'idle'].includes(value)
   const displayLabel = label ?? value.charAt(0).toUpperCase() + value.slice(1).replace('_', ' ')
 
   return (
@@ -189,7 +189,17 @@ export function SystemStatus() {
   const { readiness, razorpay } = state
   const backendOk = readiness.status === 'ready'
   const razorpayBadge = razorpay?.configured ? 'configured' : 'not_configured'
-  const webhookBadge = razorpay && razorpay.events_received > 0 ? 'receiving' : 'waiting'
+
+  // events_received is a persisted count, so it stays truthful across restarts.
+  // "Active" = something arrived in the last 24h; "Idle" = ingested before, quiet now.
+  const ingestedTotal = razorpay?.events_received ?? 0
+  const lastEventMs = razorpay?.last_event_at ? Date.parse(razorpay.last_event_at) : NaN
+  const isRecent = Number.isFinite(lastEventMs) && Date.now() - lastEventMs < 24 * 60 * 60 * 1000
+  const webhookBadge = ingestedTotal === 0 ? 'waiting' : isRecent ? 'active' : 'idle'
+  const webhookLabel =
+    ingestedTotal === 0
+      ? 'Waiting for first event'
+      : `${isRecent ? 'Active' : 'Idle'} · ${ingestedTotal} event${ingestedTotal === 1 ? '' : 's'}`
 
   return (
     <div className="glass-card p-6 sm:p-8 w-full">
@@ -222,14 +232,7 @@ export function SystemStatus() {
           />
         </StatusRow>
         <StatusRow label="Webhook Ingestion" icon={Webhook}>
-          <StatusBadge
-            value={webhookBadge}
-            label={
-              razorpay && razorpay.events_received > 0
-                ? `Receiving (${razorpay.events_received} events)`
-                : 'Waiting'
-            }
-          />
+          <StatusBadge value={webhookBadge} label={webhookLabel} />
         </StatusRow>
       </div>
     </div>
