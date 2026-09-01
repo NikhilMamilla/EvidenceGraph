@@ -60,7 +60,7 @@ function FunnelVisualization({ funnel }: { funnel: PaymentFunnel }) {
   const maxCount = Math.max(...funnel.stages.map(s => s.count), 1)
 
   return (
-    <div className="glass-card p-6">
+    <div className="glass-card-elevated premium-ring p-6 sm:p-8">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="neo-pressed p-2 rounded-lg bg-indigo-500/10">

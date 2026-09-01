@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { CheckCircle, XCircle, Clock, CreditCard, DollarSign, RefreshCw } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, CreditCard, DollarSign, RefreshCw, Receipt, Layers, ShieldCheck, GitCompare, Link2, AlertTriangle } from 'lucide-react'
+import { EmptyState, LoadingState, PageHeader, Panel, SubTabs } from './ui'
+
+type DetailTab = 'overview' | 'evidence' | 'integrity'
 
 interface PaymentEvent {
   event_type: string
@@ -601,7 +604,7 @@ export function PaymentInspector() {
   const [evolutionChanges, setEvolutionChanges] = useState<ChangeRecord[]>([])
   const [dimensionFilter, setDimensionFilter] = useState<string>('ALL')
   const [recomputeLoading, setRecomputeLoading] = useState(false)
-  const [showMobileList, setShowMobileList] = useState(true)
+  const [detailTab, setDetailTab] = useState<DetailTab>('overview')
 
   useEffect(() => {
     fetchPayments()
@@ -770,103 +773,92 @@ export function PaymentInspector() {
     }
   }
 
-  const listPanelClass = showMobileList
-    ? 'glass-card overflow-hidden flex flex-col min-h-[400px] lg:min-h-[600px]'
-    : 'glass-card overflow-hidden flex flex-col hidden lg:flex min-h-[600px]'
-  const detailPanelClass = !showMobileList
-    ? 'glass-card overflow-hidden flex flex-col min-h-[400px] lg:min-h-[600px]'
-    : 'glass-card overflow-hidden flex flex-col hidden lg:flex min-h-[600px]'
+
+  const tabs = [
+    { key: 'overview' as DetailTab, label: 'Overview', icon: Receipt },
+    { key: 'evidence' as DetailTab, label: 'Evidence', icon: Layers },
+    { key: 'integrity' as DetailTab, label: 'Integrity & Replay', icon: ShieldCheck },
+  ]
 
   return (
-    <div className="w-full max-w-6xl mx-auto animate-fade-in">
-      {/* Mobile: Back button when viewing details */}
-      {!showMobileList && selectedPayment && (
-        <button
-          onClick={() => { setShowMobileList(true); setSelectedPayment(null) }}
-          className="lg:hidden mb-4 neo-btn text-xs flex items-center gap-2"
-        >
-          ← Back to Payments
-        </button>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Payment List */}
-      <div className={listPanelClass}>
-        <div className="p-4 border-b border-white/5 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <div className="neo-pressed p-2 rounded-lg">
-              <DollarSign className="w-4 h-4 text-indigo-400" />
-            </div>
-            Canonical Payments
-          </h2>
-          <button onClick={fetchPayments} className="neo-btn text-xs text-indigo-300 flex items-center gap-1.5">
-            <RefreshCw className="w-3 h-3" />
-            Refresh
+    <div className="space-y-6">
+      <PageHeader
+        icon={CreditCard}
+        title="Payment Inspector"
+        subtitle="Canonical record, evidence, and the verification trail for one payment"
+        actions={
+          <button onClick={fetchPayments} className="neo-btn flex items-center gap-1.5 text-xs">
+            <RefreshCw className="h-3 w-3" /> Refresh
           </button>
-        </div>
-        
-        <div className="overflow-y-auto flex-1 p-2">
-          {loading ? (
-            <div className="flex items-center justify-center h-full text-slate-400 text-sm">Loading payments...</div>
-          ) : payments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm gap-2">
-              <div className="p-3 rounded-full bg-slate-800 border border-slate-700/50">
-                <CreditCard className="w-6 h-6 text-slate-500" />
-              </div>
-              No payments captured yet.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {payments.map((p) => (
-                <div 
+        }
+      />
+
+      {/* ── Canonical payments — horizontal selector row ─────────────── */}
+      <Panel title={`Canonical payments (${payments.length})`} icon={DollarSign} bodyClassName="p-3">
+        {loading ? (
+          <LoadingState label="Loading payments…" />
+        ) : payments.length === 0 ? (
+          <EmptyState
+            icon={CreditCard}
+            title="No payments captured yet"
+            hint="Ingest a Razorpay Test Mode webhook and the canonical payment will appear here."
+          />
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {payments.map((p) => {
+              const active = selectedPayment?.razorpay_payment_id === p.razorpay_payment_id
+              return (
+                <button
                   key={p.razorpay_payment_id}
-                  onClick={() => { fetchPaymentDetails(p.razorpay_payment_id); if (window.innerWidth < 1024) setShowMobileList(false) }}
-                  className={`p-4 rounded-xl cursor-pointer transition-all duration-300 ${
-                    selectedPayment?.razorpay_payment_id === p.razorpay_payment_id 
-                      ? 'neo-card border-indigo-500/20 shadow-glow-indigo' 
-                      : 'neo-card hover:border-white/10'
-                  }`}
+                  onClick={() => fetchPaymentDetails(p.razorpay_payment_id)}
+                  className="shrink-0 rounded-xl p-4 text-left transition-all duration-300"
+                  style={{
+                    minWidth: 232,
+                    background: active ? 'var(--color-accent-glow)' : 'var(--color-bg-surface)',
+                    border: `1px solid ${active ? 'var(--color-border-accent)' : 'var(--color-border)'}`,
+                  }}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-mono text-sm text-slate-300">{p.razorpay_payment_id}</span>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="truncate font-mono text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                      {p.razorpay_payment_id}
+                    </span>
                     {getStatusBadge(p.status)}
                   </div>
-                  <div className="flex justify-between items-end">
-                    <div className="text-xl font-medium text-slate-100">
-                      {formatCurrency(p.amount_minor, p.currency)}
-                    </div>
-                    <div className="text-xs text-slate-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {format(new Date(p.first_observed_at), 'MMM d, HH:mm:ss')}
-                    </div>
+                  <div
+                    className="text-lg font-bold tracking-tight"
+                    style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}
+                  >
+                    {formatCurrency(p.amount_minor, p.currency)}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+                  <div className="mt-1 flex items-center gap-1 text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                    <Clock className="h-3 w-3" />
+                    {format(new Date(p.first_observed_at), 'MMM d, HH:mm:ss')}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </Panel>
 
-      {/* Payment Details */}
-      <div className={detailPanelClass}>
-        <div className="p-4 border-b border-white/5">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <div className="neo-pressed p-2 rounded-lg">
-              <CreditCard className="w-4 h-4 text-indigo-400" />
-            </div>
-            Payment Details
-          </h2>
-        </div>
-        
-        <div className="overflow-y-auto flex-1 p-6">
-          {loadingDetails ? (
-             <div className="flex items-center justify-center h-full text-slate-400 text-sm">Loading details...</div>
-          ) : !selectedPayment ? (
-             <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm gap-2">
-                Select a payment to view canonical details and event lineage.
-             </div>
-          ) : (
-            <div className="space-y-6">
+      {loadingDetails ? (
+        <Panel><LoadingState label="Loading payment detail…" /></Panel>
+      ) : !selectedPayment ? (
+        <Panel>
+          <EmptyState
+            icon={Receipt}
+            title="Select a payment"
+            hint="Pick a payment above to inspect its canonical record, evidence graph, integrity assessment and decision replay."
+          />
+        </Panel>
+      ) : (
+        <>
+          <SubTabs tabs={tabs} active={detailTab} onChange={setDetailTab} />
+
+          {/* ══ OVERVIEW ═════════════════════════════════════════════ */}
+          {detailTab === 'overview' && (
+            <div className="grid items-start gap-6 lg:grid-cols-2">
+              <div className="glass-card p-5 lg:col-span-2">
               <div className="flex justify-between items-center pb-4 border-b border-white/5">
                 <div>
                   <h3 className="text-2xl font-bold text-white mb-1">{formatCurrency(selectedPayment.amount_minor, selectedPayment.currency)}</h3>
@@ -899,6 +891,7 @@ export function PaymentInspector() {
                     <div><span className="text-slate-500">Captured:</span> {selectedPayment.captured ? 'Yes' : 'No'}</div>
                   </div>
                 </div>
+              </div>
               </div>
 
               {/* Phase 19 — Operational Processing & Freshness Status */}
@@ -946,87 +939,9 @@ export function PaymentInspector() {
                 </div>
               )}
 
-              {/* Phase 13 — Reconciled Evidence Facts Layer */}
-              <div className="mt-8 pt-6 border-t border-white/5">
-                <div className="flex justify-between items-center mb-4">
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      Reconciled Evidence Facts
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Canonical real-world facts normalized across observations
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => selectedPayment && triggerReconciliation(selectedPayment.razorpay_payment_id)}
-                      disabled={reconciliationLoading}
-                      className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 px-2.5 py-1 rounded border border-emerald-500/30 disabled:opacity-50 transition-colors"
-                    >
-                      {reconciliationLoading ? 'Reconciling...' : 'Reconcile'}
-                    </button>
-                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
-                      {selectedFacts.length} facts
-                    </span>
-                  </div>
-                </div>
-
-                {selectedFacts.length === 0 ? (
-                  <div className="p-4 rounded-lg border border-dashed border-slate-700 bg-slate-900/20 text-center text-xs text-slate-500">
-                    No reconciled facts recorded yet. Click Reconcile to evaluate observations.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedFacts.map((fact) => (
-                      <div key={fact.internal_id} className="neo-card p-4 border-emerald-500/10">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                              FACT #{fact.internal_id}
-                            </span>
-                            <span className="font-mono text-xs font-semibold text-slate-200">
-                              {fact.fact_type}
-                            </span>
-                          </div>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                            {fact.status}
-                          </span>
-                        </div>
-
-                        <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-xs text-slate-400">Canonical Value:</span>
-                          <span className="text-sm font-mono font-medium text-emerald-300">
-                            {fact.canonical_value}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
-                          <div>
-                            <span className="text-slate-500">Observations:</span>{' '}
-                            <span className="font-semibold text-slate-200">{fact.observation_count}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">Distinct Sources:</span>{' '}
-                            <span className="font-semibold text-slate-200">{fact.distinct_source_count}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">First Seen:</span>{' '}
-                            <span>{fact.first_observed_at ? format(new Date(fact.first_observed_at), 'HH:mm:ss') : '—'}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">Last Seen:</span>{' '}
-                            <span>{fact.last_observed_at ? format(new Date(fact.last_observed_at), 'HH:mm:ss') : '—'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               {selectedTimeline && (
-                <div className="mt-8 pt-6 border-t border-white/5">
+                <div className="glass-card p-5">
                   <div className="flex justify-between items-center mb-4">
                     <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
@@ -1075,399 +990,25 @@ export function PaymentInspector() {
                 </div>
               )}
 
-              {selectedQuality && selectedQuality.evidence_quality.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-white/5">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-pink-400"></span>
-                      Evidence Quality
-                    </h4>
-                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
-                      {selectedQuality.snapshot_count} snapshots · {selectedQuality.total_evidence_count} evidence
+
+              {selectedConsistency !== null && (
+                <div className="glass-card p-5 lg:col-span-2">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <h3 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em]"
+                        style={{ color: 'var(--color-text-primary)' }}>
+                      <GitCompare className="h-4 w-4" style={{ color: 'var(--color-text-accent)' }} />
+                      Temporal consistency
+                    </h3>
+                    <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                          style={{
+                            color: selectedConsistency.is_consistent ? 'var(--color-success)' : 'var(--color-warning)',
+                            background: selectedConsistency.is_consistent
+                              ? 'color-mix(in srgb, var(--color-success) 12%, transparent)'
+                              : 'color-mix(in srgb, var(--color-warning) 12%, transparent)',
+                          }}>
+                      {selectedConsistency.is_consistent ? 'Consistent lifecycle' : 'Conflicts detected'}
                     </span>
                   </div>
-
-                  <div className="space-y-4">
-                    {selectedQuality.evidence_quality.map((item) => (
-                      <div key={item.evidence_id} className="neo-card p-4">
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="font-mono text-xs text-slate-400">
-                            Evidence ID: {item.evidence_id} <span className="text-slate-500">· {item.evidence_type}</span>
-                          </div>
-                          {item.latest_snapshot && (
-                            <div className="text-[10px] text-slate-500 font-mono">
-                              v{item.latest_snapshot.freshness_methodology_version} · {item.snapshot_count} snapshots
-                            </div>
-                          )}
-                        </div>
-
-                        {!item.latest_snapshot ? (
-                          <div className="text-xs text-slate-500 italic">No quality snapshot recorded yet.</div>
-                        ) : (
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex flex-col p-2 rounded border overflow-hidden" style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
-                              <span className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-tertiary)' }}>Freshness</span>
-                              <span className="text-xs font-semibold truncate" style={{ color: item.latest_snapshot.freshness_state === 'CURRENT' ? 'var(--color-success)' : item.latest_snapshot.freshness_state === 'STALE' ? 'var(--color-danger)' : 'var(--color-warning)' }}>
-                                {item.latest_snapshot.freshness_state}
-                              </span>
-                            </div>
-                            <div className="flex flex-col p-2 rounded border overflow-hidden" style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
-                              <span className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-tertiary)' }}>Authority</span>
-                              <span className="text-xs font-semibold truncate" style={{ color: item.latest_snapshot.source_authority_level === 'PRIMARY' ? 'var(--color-info)' : 'var(--color-text-secondary)' }}>
-                                {item.latest_snapshot.source_authority_level}
-                              </span>
-                            </div>
-                            <div className="flex flex-col p-2 rounded border overflow-hidden" style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
-                              <span className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-tertiary)' }}>Directness</span>
-                              <span className="text-xs font-semibold truncate" style={{ color: item.latest_snapshot.source_directness === 'DIRECT' ? 'var(--color-success)' : 'var(--color-accent-primary)' }}>
-                                {item.latest_snapshot.source_directness}
-                              </span>
-                            </div>
-                            <div className="flex flex-col p-2 rounded border overflow-hidden" style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
-                              <span className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-tertiary)' }}>Reliability</span>
-                              <span className="text-xs font-semibold truncate" style={{ color: item.latest_snapshot.historical_reliability_status === 'VERIFIED' ? 'var(--color-success)' : item.latest_snapshot.historical_reliability_status === 'CONTRADICTED' ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
-                                {item.latest_snapshot.historical_reliability_status?.replace(/_/g, ' ') || 'Unknown'}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedStructure && selectedStructure.snapshot && (
-                <div className="mt-8 pt-6 border-t border-white/5">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                      Evidence Structure & Concentration
-                    </h4>
-                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700 font-mono">
-                      v{selectedStructure.snapshot.methodology_version}
-                    </span>
-                  </div>
-
-                  {/* Concentration Metrics Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
-                    <div className="metric-card flex flex-col">
-                      <span className="text-[10px] text-slate-500 uppercase tracking-wider">Observations</span>
-                      <span className="text-lg font-bold text-slate-200 mt-1">
-                        {selectedStructure.snapshot.total_observations}
-                      </span>
-                      <span className="text-[10px] text-slate-500">across {selectedStructure.snapshot.distinct_sources} sources</span>
-                    </div>
-
-                    <div className="metric-card flex flex-col">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Canonical Claims</span>
-                      <span className="text-lg font-bold text-cyan-400 mt-1">
-                        {selectedStructure.snapshot.distinct_claims}
-                      </span>
-                      <span className="text-[10px] text-slate-500">{selectedStructure.snapshot.corroborated_claim_count} corroborated</span>
-                    </div>
-
-                    <div className="metric-card flex flex-col">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Provider Events</span>
-                      <span className="text-lg font-bold text-indigo-400 mt-1">
-                        {selectedStructure.snapshot.distinct_events}
-                      </span>
-                      <span className="text-[10px] text-slate-500">largest: {selectedStructure.snapshot.largest_group_size} obs</span>
-                    </div>
-
-                    <div className="metric-card flex flex-col">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Concentration (HHI)</span>
-                      <span className="text-lg font-bold text-amber-400 mt-1 font-mono">
-                        {selectedStructure.snapshot.group_hhi.toFixed(2)}
-                      </span>
-                      <span className="text-[10px] text-slate-500">Herfindahl Index</span>
-                    </div>
-                  </div>
-
-                  {/* Canonical Claims List */}
-                  <div className="mb-6">
-                    <h5 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Canonical Claims & Corroboration</h5>
-                    <div className="space-y-2">
-                      {selectedStructure.claims.map((claim) => {
-                        const corrob = selectedStructure.corroborations.find(c => c.claim_id === claim.internal_id)
-                        return (
-                          <div key={claim.internal_id} className="p-3 rounded-lg bg-slate-900/40 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <div>
-                              <div className="text-[10px] text-slate-500 font-mono uppercase">{claim.claim_type} ({claim.claim_key})</div>
-                              <div className="text-sm font-medium text-slate-200 font-mono mt-0.5">{claim.canonical_value}</div>
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 font-mono">
-                                {claim.supporting_evidence_count} obs
-                              </span>
-                              {corrob && (
-                                <>
-                                  <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${
-                                    corrob.corroboration_type === 'MULTI_SOURCE_CORROBORATION' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                    corrob.corroboration_type === 'TEMPORAL_CORROBORATION' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                                    corrob.corroboration_type === 'SAME_SOURCE_CORROBORATION' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                    'bg-slate-800 text-slate-400 border-slate-700'
-                                  }`}>
-                                    {corrob.corroboration_type}
-                                  </span>
-                                  <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${
-                                    corrob.independence_status === 'INDEPENDENT_CANDIDATE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                    corrob.independence_status === 'DEPENDENT' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-                                    corrob.independence_status === 'SAME_SOURCE' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                    'bg-slate-800 text-slate-400 border-slate-700'
-                                  }`}>
-                                    {corrob.independence_status}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Evidence Groups */}
-                  <div>
-                    <h5 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Evidence Origin Groups</h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {selectedStructure.groups.map((group) => (
-                        <div key={group.internal_id} className="p-2.5 rounded-lg bg-slate-900/30 border border-slate-800 flex justify-between items-center">
-                          <div className="truncate mr-2">
-                            <span className="text-[10px] text-slate-500 uppercase font-mono block">{group.group_type}</span>
-                            <span className="text-xs text-slate-300 font-mono truncate block">{group.grouping_key}</span>
-                          </div>
-                          <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded font-mono border border-slate-700 whitespace-nowrap">
-                            {group.member_count} members
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGraph && selectedGraph.edge_count > 0 && (
-                <div className="mt-8 pt-6 pb-8 border-t border-white/5">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                      <span className="text-indigo-400">🔗</span> Evidence Relationships
-                    </h4>
-                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
-                      {selectedGraph.edge_count} edges
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {/* Group edges by type for easier reading */}
-                    {Array.from(new Set(selectedGraph.edges.map(e => e.relationship_type))).sort().map(edgeType => {
-                      const edgesOfType = selectedGraph.edges.filter(e => e.relationship_type === edgeType)
-                      
-                      // Style badges differently based on type
-                      let badgeStyle = "bg-slate-700/50 text-slate-300 border-slate-600"
-                      if (edgeType === 'INDEPENDENCE_CANDIDATE') badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                      if (edgeType === 'SAME_SOURCE') badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                      if (edgeType === 'DERIVED_FROM') badgeStyle = "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      
-                      return (
-                        <div key={edgeType} className="mb-4">
-                          <div className="mb-2">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-mono border uppercase tracking-wider ${badgeStyle}`}>
-                              {edgeType}
-                            </span>
-                          </div>
-                          <div className="space-y-1">
-                            {edgesOfType.map(edge => {
-                              const sourceNode = selectedGraph.nodes.find(n => n.evidence_id === edge.source_evidence_id)
-                              const targetNode = selectedGraph.nodes.find(n => n.evidence_id === edge.target_evidence_id)
-                              
-                              return (
-                                <div key={edge.edge_id} className="text-xs flex items-center gap-2 bg-slate-900/40 p-2 rounded border border-slate-800">
-                                  <div className="truncate flex-1 font-mono text-slate-400">
-                                    [#{sourceNode?.evidence_id}] {sourceNode?.evidence_type}
-                                  </div>
-                                  <div className="text-slate-600">→</div>
-                                  <div className="truncate flex-1 font-mono text-slate-400">
-                                    [#{targetNode?.evidence_id}] {targetNode?.evidence_type}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Evidence Evolution — Phase 11 */}
-              <div className="mt-8 pt-6 border-t border-white/5">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <span className="text-purple-400">⏱️</span> Evidence Evolution
-                  </h4>                    <button
-                      onClick={() => recomputeEvolution(selectedPayment.razorpay_payment_id)}
-                      disabled={recomputeLoading}
-                      className="neo-btn text-xs text-purple-300 px-3 py-1.5 disabled:opacity-50 transition-all duration-200"
-                  >
-                    {recomputeLoading ? 'Recomputing...' : 'Recompute Now'}
-                  </button>
-                </div>
-
-                {/* Dimension filter bar */}
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {['ALL', 'EVIDENCE', 'CORROBORATION', 'INDEPENDENCE', 'FRESHNESS', 'CONSISTENCY', 'INTEGRITY', 'METHODOLOGY'].map(dim => (
-                    <button
-                      key={dim}
-                      onClick={() => setDimensionFilter(dim)}
-                      className={`text-[10px] px-2 py-1 rounded border transition-colors ${
-                        dimensionFilter === dim
-                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600'
-                      }`}
-                    >
-                      {dim}
-                    </button>
-                  ))}
-                </div>
-
-                {stateHistory.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500 text-sm">
-                    No material evidence-state change detected.
-                  </div>
-                ) : (
-                  <div className="relative">
-                    {/* Vertical timeline */}
-                    <div className="absolute left-3 top-0 bottom-0 w-px bg-slate-700" />
-                    <div className="space-y-0">
-                      {stateHistory.map((snap) => {
-                        const snapChanges = evolutionChanges.filter(c => {
-                          const matchesPair = c.current_snapshot_id === snap.snapshot_id
-                          const matchesDim = dimensionFilter === 'ALL' || c.dimension === dimensionFilter
-                          return matchesPair && matchesDim
-                        })
-
-                        const integrityColor =
-                          snap.overall_integrity_status === 'VERY_STRONG' ? 'text-emerald-400' :
-                          snap.overall_integrity_status === 'STRONG' ? 'text-green-400' :
-                          snap.overall_integrity_status === 'LIMITED' ? 'text-amber-400' :
-                          snap.overall_integrity_status === 'WEAK' ? 'text-orange-400' :
-                          snap.overall_integrity_status === 'UNRESOLVED' ? 'text-red-400' :
-                          'text-slate-400'
-
-                        return (
-                          <div key={snap.snapshot_id} className="pl-8 pb-4">
-                            {/* Timeline node */}
-                            <div className="absolute left-1 w-5 h-5 rounded-full bg-slate-800 border-2 border-purple-500/60 flex items-center justify-center" style={{ marginTop: '2px' }}>
-                              <div className="w-2 h-2 rounded-full bg-purple-500" />
-                            </div>
-
-                            {/* Snapshot card */}
-                            <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-700/50">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs text-slate-400 font-mono">
-                                  {format(new Date(snap.evaluation_time), 'MMM d, HH:mm:ss')}
-                                </span>
-                                <span className={`text-xs font-semibold ${integrityColor}`}>
-                                  {snap.overall_integrity_status}
-                                </span>
-                              </div>
-                              <div className="flex gap-3 text-[10px] text-slate-500">
-                                <span>{snap.evidence_count} evidence</span>
-                                <span>{snap.conflict_count} conflicts</span>
-                                <span>v{snap.methodology_version}</span>
-                              </div>
-                            </div>
-
-                            {/* Change cards between previous and this snapshot */}
-                            {snapChanges.length > 0 && (
-                              <div className="mt-2 space-y-2">
-                                {snapChanges.map(change => (
-                                  <div key={change.change_id} className="ml-2 p-3 rounded-lg bg-purple-500/5 border border-purple-500/20">
-                                    <div className="flex items-start justify-between mb-1">
-                                      <div>
-                                        <span className="text-[10px] font-semibold text-purple-300 uppercase tracking-wider">
-                                          {change.change_type.replace(/_/g, ' ')}
-                                        </span>
-                                        <span className="ml-2 text-[10px] text-slate-500">{change.dimension}</span>
-                                      </div>
-                                      <span className="text-[10px] text-slate-500 font-mono">
-                                        {format(new Date(change.detected_at), 'HH:mm:ss')}
-                                      </span>
-                                    </div>
-
-                                    {change.explanation && (
-                                      <p className="text-[11px] text-slate-300 mb-1">{change.explanation}</p>
-                                    )}
-
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      {change.previous_value && change.current_value && (
-                                        <span className="text-[10px] font-mono">
-                                          <span className="text-slate-500">{change.previous_value}</span>
-                                          <span className="text-slate-600 mx-1">→</span>
-                                          <span className="text-slate-200">{change.current_value}</span>
-                                        </span>
-                                      )}
-                                      {change.direct_cause && (
-                                        <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">
-                                          {change.direct_cause.replace(/_/g, ' ')}
-                                        </span>
-                                      )}
-                                      {change.magnitude && (
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                                          change.magnitude === 'MAJOR' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                          change.magnitude === 'MODERATE' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                          'bg-slate-800 text-slate-400 border-slate-700'
-                                        }`}>
-                                          {change.magnitude}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* =====================================================================
-           PHASE 8 — Temporal Consistency & Contradiction Analysis
-           ===================================================================== */}
-      {selectedConsistency !== null && (
-        <div className="lg:col-span-2 glass-card overflow-hidden animate-slide-up">
-          <div className="p-4 border-b border-white/5 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-200 flex items-center gap-2">
-              {selectedConsistency.is_consistent ? (
-                <span className="text-green-400">✓</span>
-              ) : (
-                <span className="text-amber-400">⚠</span>
-              )}
-              Temporal Consistency Analysis
-            </h3>
-            <div className="flex items-center gap-2">
-              {selectedConsistency.is_consistent ? (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-500/10 text-green-400 text-xs font-medium border border-green-500/20">
-                  ✓ Consistent Lifecycle
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/10 text-amber-400 text-xs font-medium border border-amber-500/20">
-                  ⚠ {selectedConsistency.open_conflicts} Open {selectedConsistency.open_conflicts === 1 ? 'Inconsistency' : 'Inconsistencies'}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="p-4 space-y-4">
             {/* Metrics row */}
             <div className="grid grid-cols-3 gap-3">
               {[
@@ -1485,7 +1026,7 @@ export function PaymentInspector() {
             {/* No conflicts message */}
             {selectedConsistency.total_conflicts === 0 && (
               <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/5 border border-green-500/20 text-green-400 text-sm">
-                <span className="text-lg">✓</span>
+                <CheckCircle className="w-4 h-4 shrink-0" />
                 <div>
                   <div className="font-medium">No contradictions detected</div>
                   <div className="text-xs text-green-500/70 mt-0.5">All observations are temporally and semantically consistent.</div>
@@ -1604,124 +1145,325 @@ export function PaymentInspector() {
               </div>
             )}
 
-            {/* ── Phase 9 — Evidence Integrity Panel ─────────────────────── */}
-            {selectedIntegrity && (
-              <div className="mt-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Evidence Integrity</h4>
-                  <span className="text-[10px] bg-violet-500/10 text-violet-400 px-2 py-1 rounded-full border border-violet-500/20 font-mono">
-                    {selectedIntegrity.methodology_version}
-                  </span>
                 </div>
+              )}
+            </div>
+          )}
 
-                {/* Overall status banner */}
-                <div className={`mb-4 p-4 rounded-lg border flex items-center justify-between ${
-                  selectedIntegrity.overall_status === 'VERY_STRONG' ? 'bg-emerald-500/10 border-emerald-500/30' :
-                  selectedIntegrity.overall_status === 'STRONG'      ? 'bg-green-500/10 border-green-500/30' :
-                  selectedIntegrity.overall_status === 'LIMITED'     ? 'bg-yellow-500/10 border-yellow-500/30' :
-                  selectedIntegrity.overall_status === 'WEAK'        ? 'bg-orange-500/10 border-orange-500/30' :
-                  selectedIntegrity.overall_status === 'UNRESOLVED'  ? 'bg-red-500/10 border-red-500/30' :
-                  'bg-slate-700/30 border-slate-600/30'
-                }`}>
-                  <span className={`text-lg font-bold tracking-wide ${
-                    selectedIntegrity.overall_status === 'VERY_STRONG' ? 'text-emerald-400' :
-                    selectedIntegrity.overall_status === 'STRONG'      ? 'text-green-400' :
-                    selectedIntegrity.overall_status === 'LIMITED'     ? 'text-yellow-400' :
-                    selectedIntegrity.overall_status === 'WEAK'        ? 'text-orange-400' :
-                    selectedIntegrity.overall_status === 'UNRESOLVED'  ? 'text-red-400' :
-                    'text-slate-400'
-                  }`}>
-                    {selectedIntegrity.overall_status.replace(/_/g, ' ')}
-                  </span>
-                  <div className="text-right text-xs text-slate-400 space-y-0.5">
-                    <div>{selectedIntegrity.evidence_count} observation{selectedIntegrity.evidence_count !== 1 ? 's' : ''}</div>
-                    <div>{selectedIntegrity.source_count} source{selectedIntegrity.source_count !== 1 ? 's' : ''}</div>
-                    {selectedIntegrity.open_conflict_count > 0 && (
-                      <div className="text-red-400">{selectedIntegrity.open_conflict_count} open conflict{selectedIntegrity.open_conflict_count !== 1 ? 's' : ''}</div>
-                    )}
+          {/* ══ EVIDENCE ═════════════════════════════════════════════ */}
+          {detailTab === 'evidence' && (
+            <div className="grid items-start gap-6 lg:grid-cols-2">
+              {/* Phase 13 — Reconciled Evidence Facts Layer */}
+              <div className="glass-card p-5 lg:col-span-2">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                      Reconciled Evidence Facts
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Canonical real-world facts normalized across observations
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => selectedPayment && triggerReconciliation(selectedPayment.razorpay_payment_id)}
+                      disabled={reconciliationLoading}
+                      className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 px-2.5 py-1 rounded border border-emerald-500/30 disabled:opacity-50 transition-colors"
+                    >
+                      {reconciliationLoading ? 'Reconciling...' : 'Reconcile'}
+                    </button>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
+                      {selectedFacts.length} facts
+                    </span>
                   </div>
                 </div>
 
-                {/* Dimensions table */}
-                <div className="space-y-2 mb-4">
-                  {([
-                    ['Freshness',      selectedIntegrity.freshness_result],
-                    ['Source',         selectedIntegrity.source_result],
-                    ['Independence',   selectedIntegrity.independence_result],
-                    ['Corroboration',  selectedIntegrity.corroboration_result],
-                    ['Consistency',    selectedIntegrity.consistency_result],
-                  ] as [string, DimensionResult | null][]).map(([label, dim]) => (
-                    <div key={label} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-700/50">
-                      <div className="w-28 shrink-0 text-xs text-slate-400 font-medium pt-0.5">{label}</div>
-                      {dim ? (
-                        <div className="flex-1">
-                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded mb-1 ${
-                            ['STRONG','STRONGLY_CORROBORATED','NO_DETECTED_CONFLICT','HIGH_SOURCE_DIVERSITY','CURRENT'].some(s => dim.status.includes(s))
-                              ? 'bg-green-500/15 text-green-400 border border-green-500/20'
-                              : ['WEAK','HAS_OPEN_CONFLICTS','TERTIARY','UNRESOLVABLE'].some(s => dim.status.includes(s))
-                              ? 'bg-red-500/15 text-red-400 border border-red-500/20'
-                              : ['LIMITED','SINGLE_SOURCE','STALE','ORDERING_AMBIGUITY','PARTIAL'].some(s => dim.status.includes(s))
-                              ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
-                              : 'bg-slate-700/40 text-slate-400 border border-slate-600/30'
-                          }`}>
-                            {dim.status.replace(/_/g, ' ')}
+                {selectedFacts.length === 0 ? (
+                  <div className="p-4 rounded-lg border border-dashed border-slate-700 bg-slate-900/20 text-center text-xs text-slate-500">
+                    No reconciled facts recorded yet. Click Reconcile to evaluate observations.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedFacts.map((fact) => (
+                      <div key={fact.internal_id} className="neo-card p-4 border-emerald-500/10">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                              FACT #{fact.internal_id}
+                            </span>
+                            <span className="font-mono text-xs font-semibold text-slate-200">
+                              {fact.fact_type}
+                            </span>
+                          </div>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                            {fact.status}
                           </span>
-                          <div className="text-[11px] text-slate-500">{dim.reason}</div>
                         </div>
-                      ) : (
-                        <span className="text-xs text-slate-600">—</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
 
-                {/* Why section */}
-                {selectedIntegrity.explanation_lines.length > 0 && (
-                  <div className="mb-4">
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Why this assessment</div>
-                    <div className="space-y-1">
-                      {selectedIntegrity.explanation_lines.map((line, i) => {
-                        const isWarning = line.toLowerCase().includes('single') ||
-                          line.toLowerCase().includes('limited') ||
-                          line.toLowerCase().includes('only one') ||
-                          line.toLowerCase().includes('conflict')
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-xs text-slate-400">Canonical Value:</span>
+                          <span className="text-sm font-mono font-medium text-emerald-300">
+                            {fact.canonical_value}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
+                          <div>
+                            <span className="text-slate-500">Observations:</span>{' '}
+                            <span className="font-semibold text-slate-200">{fact.observation_count}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Distinct Sources:</span>{' '}
+                            <span className="font-semibold text-slate-200">{fact.distinct_source_count}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">First Seen:</span>{' '}
+                            <span>{fact.first_observed_at ? format(new Date(fact.first_observed_at), 'HH:mm:ss') : '—'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Last Seen:</span>{' '}
+                            <span>{fact.last_observed_at ? format(new Date(fact.last_observed_at), 'HH:mm:ss') : '—'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedQuality && selectedQuality.evidence_quality.length > 0 && (
+                <div className="glass-card p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-pink-400"></span>
+                      Evidence Quality
+                    </h4>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
+                      {selectedQuality.snapshot_count} snapshots · {selectedQuality.total_evidence_count} evidence
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {selectedQuality.evidence_quality.map((item) => (
+                      <div key={item.evidence_id} className="neo-card p-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="font-mono text-xs text-slate-400">
+                            Evidence ID: {item.evidence_id} <span className="text-slate-500">· {item.evidence_type}</span>
+                          </div>
+                          {item.latest_snapshot && (
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              v{item.latest_snapshot.freshness_methodology_version} · {item.snapshot_count} snapshots
+                            </div>
+                          )}
+                        </div>
+
+                        {!item.latest_snapshot ? (
+                          <div className="text-xs text-slate-500 italic">No quality snapshot recorded yet.</div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col p-2 rounded border overflow-hidden" style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
+                              <span className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-tertiary)' }}>Freshness</span>
+                              <span className="text-xs font-semibold truncate" style={{ color: item.latest_snapshot.freshness_state === 'CURRENT' ? 'var(--color-success)' : item.latest_snapshot.freshness_state === 'STALE' ? 'var(--color-danger)' : 'var(--color-warning)' }}>
+                                {item.latest_snapshot.freshness_state}
+                              </span>
+                            </div>
+                            <div className="flex flex-col p-2 rounded border overflow-hidden" style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
+                              <span className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-tertiary)' }}>Authority</span>
+                              <span className="text-xs font-semibold truncate" style={{ color: item.latest_snapshot.source_authority_level === 'PRIMARY' ? 'var(--color-info)' : 'var(--color-text-secondary)' }}>
+                                {item.latest_snapshot.source_authority_level}
+                              </span>
+                            </div>
+                            <div className="flex flex-col p-2 rounded border overflow-hidden" style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
+                              <span className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-tertiary)' }}>Directness</span>
+                              <span className="text-xs font-semibold truncate" style={{ color: item.latest_snapshot.source_directness === 'DIRECT' ? 'var(--color-success)' : 'var(--color-accent-primary)' }}>
+                                {item.latest_snapshot.source_directness}
+                              </span>
+                            </div>
+                            <div className="flex flex-col p-2 rounded border overflow-hidden" style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
+                              <span className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-tertiary)' }}>Reliability</span>
+                              <span className="text-xs font-semibold truncate" style={{ color: item.latest_snapshot.historical_reliability_status === 'VERIFIED' ? 'var(--color-success)' : item.latest_snapshot.historical_reliability_status === 'CONTRADICTED' ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
+                                {item.latest_snapshot.historical_reliability_status?.replace(/_/g, ' ') || 'Unknown'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+
+              {selectedStructure && selectedStructure.snapshot && (
+                <div className="glass-card p-5 lg:col-span-2">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                      Evidence Structure & Concentration
+                    </h4>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700 font-mono">
+                      v{selectedStructure.snapshot.methodology_version}
+                    </span>
+                  </div>
+
+                  {/* Concentration Metrics Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
+                    <div className="metric-card flex flex-col">
+                      <span className="text-[10px] text-slate-500 uppercase tracking-wider">Observations</span>
+                      <span className="text-lg font-bold text-slate-200 mt-1">
+                        {selectedStructure.snapshot.total_observations}
+                      </span>
+                      <span className="text-[10px] text-slate-500">across {selectedStructure.snapshot.distinct_sources} sources</span>
+                    </div>
+
+                    <div className="metric-card flex flex-col">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Canonical Claims</span>
+                      <span className="text-lg font-bold text-cyan-400 mt-1">
+                        {selectedStructure.snapshot.distinct_claims}
+                      </span>
+                      <span className="text-[10px] text-slate-500">{selectedStructure.snapshot.corroborated_claim_count} corroborated</span>
+                    </div>
+
+                    <div className="metric-card flex flex-col">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Provider Events</span>
+                      <span className="text-lg font-bold text-indigo-400 mt-1">
+                        {selectedStructure.snapshot.distinct_events}
+                      </span>
+                      <span className="text-[10px] text-slate-500">largest: {selectedStructure.snapshot.largest_group_size} obs</span>
+                    </div>
+
+                    <div className="metric-card flex flex-col">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Concentration (HHI)</span>
+                      <span className="text-lg font-bold text-amber-400 mt-1 font-mono">
+                        {selectedStructure.snapshot.group_hhi.toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-slate-500">Herfindahl Index</span>
+                    </div>
+                  </div>
+
+                  {/* Canonical Claims List */}
+                  <div className="mb-6">
+                    <h5 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Canonical Claims & Corroboration</h5>
+                    <div className="space-y-2">
+                      {selectedStructure.claims.map((claim) => {
+                        const corrob = selectedStructure.corroborations.find(c => c.claim_id === claim.internal_id)
                         return (
-                          <div key={i} className={`flex items-start gap-2 text-xs ${
-                            isWarning ? 'text-yellow-400/80' : 'text-slate-300'
-                          }`}>
-                            <span className="mt-0.5 shrink-0">{isWarning ? '⚠' : '✓'}</span>
-                            <span>{line}</span>
+                          <div key={claim.internal_id} className="p-3 rounded-lg bg-slate-900/40 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <div className="text-[10px] text-slate-500 font-mono uppercase">{claim.claim_type} ({claim.claim_key})</div>
+                              <div className="text-sm font-medium text-slate-200 font-mono mt-0.5">{claim.canonical_value}</div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 font-mono">
+                                {claim.supporting_evidence_count} obs
+                              </span>
+                              {corrob && (
+                                <>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${
+                                    corrob.corroboration_type === 'MULTI_SOURCE_CORROBORATION' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                    corrob.corroboration_type === 'TEMPORAL_CORROBORATION' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                    corrob.corroboration_type === 'SAME_SOURCE_CORROBORATION' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                    'bg-slate-800 text-slate-400 border-slate-700'
+                                  }`}>
+                                    {corrob.corroboration_type}
+                                  </span>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${
+                                    corrob.independence_status === 'INDEPENDENT_CANDIDATE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                    corrob.independence_status === 'DEPENDENT' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                                    corrob.independence_status === 'SAME_SOURCE' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                    'bg-slate-800 text-slate-400 border-slate-700'
+                                  }`}>
+                                    {corrob.independence_status}
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         )
                       })}
                     </div>
                   </div>
-                )}
 
-                {/* Limitations */}
-                {selectedIntegrity.limitations.length > 0 && (
-                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/40">
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Limitations</div>
-                    <div className="space-y-1">
-                      {selectedIntegrity.limitations.map((lim, i) => (
-                        <div key={i} className="flex items-start gap-2 text-xs text-slate-500">
-                          <span className="shrink-0 mt-0.5">•</span>
-                          <span>{lim}</span>
+                  {/* Evidence Groups */}
+                  <div>
+                    <h5 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Evidence Origin Groups</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {selectedStructure.groups.map((group) => (
+                        <div key={group.internal_id} className="p-2.5 rounded-lg bg-slate-900/30 border border-slate-800 flex justify-between items-center">
+                          <div className="truncate mr-2">
+                            <span className="text-[10px] text-slate-500 uppercase font-mono block">{group.group_type}</span>
+                            <span className="text-xs text-slate-300 font-mono truncate block">{group.grouping_key}</span>
+                          </div>
+                          <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded font-mono border border-slate-700 whitespace-nowrap">
+                            {group.member_count} members
+                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
-                )}
-
-                <div className="mt-3 text-[10px] text-slate-600">
-                  Evaluated at {format(new Date(selectedIntegrity.evaluated_at), 'MMM d, HH:mm:ss')} UTC
                 </div>
-              </div>
-            )}
+              )}
+
+
+              {selectedGraph && selectedGraph.edge_count > 0 && (
+                <div className="glass-card p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                      <Link2 className="w-4 h-4 text-indigo-400" /> Evidence Relationships
+                    </h4>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
+                      {selectedGraph.edge_count} edges
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {/* Group edges by type for easier reading */}
+                    {Array.from(new Set(selectedGraph.edges.map(e => e.relationship_type))).sort().map(edgeType => {
+                      const edgesOfType = selectedGraph.edges.filter(e => e.relationship_type === edgeType)
+                      
+                      // Style badges differently based on type
+                      let badgeStyle = "bg-slate-700/50 text-slate-300 border-slate-600"
+                      if (edgeType === 'INDEPENDENCE_CANDIDATE') badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                      if (edgeType === 'SAME_SOURCE') badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                      if (edgeType === 'DERIVED_FROM') badgeStyle = "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      
+                      return (
+                        <div key={edgeType} className="mb-4">
+                          <div className="mb-2">
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-mono border uppercase tracking-wider ${badgeStyle}`}>
+                              {edgeType}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {edgesOfType.map(edge => {
+                              const sourceNode = selectedGraph.nodes.find(n => n.evidence_id === edge.source_evidence_id)
+                              const targetNode = selectedGraph.nodes.find(n => n.evidence_id === edge.target_evidence_id)
+                              
+                              return (
+                                <div key={edge.edge_id} className="text-xs flex items-center gap-2 bg-slate-900/40 p-2 rounded border border-slate-800">
+                                  <div className="truncate flex-1 font-mono text-slate-400">
+                                    [#{sourceNode?.evidence_id}] {sourceNode?.evidence_type}
+                                  </div>
+                                  <div className="text-slate-600">→</div>
+                                  <div className="truncate flex-1 font-mono text-slate-400">
+                                    [#{targetNode?.evidence_id}] {targetNode?.evidence_type}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
 
             {/* ── Phase 15 — Evidence Completeness & Coverage Analysis ────── */}
             {selectedCoverage && (
-              <div className="mt-8">
+              <div className="glass-card p-5 lg:col-span-2">
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1862,9 +1604,10 @@ export function PaymentInspector() {
               </div>
             )}
 
+
             {/* ── Phase 14 — End-to-End Evidence Lineage & Causal Chain ───── */}
             {selectedLineage && (
-              <div className="mt-8">
+              <div className="glass-card p-5">
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1913,7 +1656,7 @@ export function PaymentInspector() {
                 {selectedLineage.gaps.length > 0 && (
                   <div className="mb-4 p-3 rounded-lg bg-amber-950/20 border border-amber-500/25">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-2 flex items-center gap-1.5">
-                      <span>⚠</span>
+                      <AlertTriangle className="w-3 h-3" />
                       <span>Lineage Gaps Detected ({selectedLineage.evaluation_context.gap_count})</span>
                     </div>
                     <div className="space-y-2">
@@ -1993,9 +1736,133 @@ export function PaymentInspector() {
               </div>
             )}
 
+            </div>
+          )}
+
+          {/* ══ INTEGRITY & REPLAY ═══════════════════════════════════ */}
+          {detailTab === 'integrity' && (
+            <div className="grid items-start gap-6 lg:grid-cols-2">
+            {/* ── Phase 9 — Evidence Integrity Panel ─────────────────────── */}
+            {selectedIntegrity && (
+              <div className="glass-card p-5 lg:col-span-2">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Evidence Integrity</h4>
+                  <span className="text-[10px] bg-violet-500/10 text-violet-400 px-2 py-1 rounded-full border border-violet-500/20 font-mono">
+                    {selectedIntegrity.methodology_version}
+                  </span>
+                </div>
+
+                {/* Overall status banner */}
+                <div className={`mb-4 p-4 rounded-lg border flex items-center justify-between ${
+                  selectedIntegrity.overall_status === 'VERY_STRONG' ? 'bg-emerald-500/10 border-emerald-500/30' :
+                  selectedIntegrity.overall_status === 'STRONG'      ? 'bg-green-500/10 border-green-500/30' :
+                  selectedIntegrity.overall_status === 'LIMITED'     ? 'bg-yellow-500/10 border-yellow-500/30' :
+                  selectedIntegrity.overall_status === 'WEAK'        ? 'bg-orange-500/10 border-orange-500/30' :
+                  selectedIntegrity.overall_status === 'UNRESOLVED'  ? 'bg-red-500/10 border-red-500/30' :
+                  'bg-slate-700/30 border-slate-600/30'
+                }`}>
+                  <span className={`text-lg font-bold tracking-wide ${
+                    selectedIntegrity.overall_status === 'VERY_STRONG' ? 'text-emerald-400' :
+                    selectedIntegrity.overall_status === 'STRONG'      ? 'text-green-400' :
+                    selectedIntegrity.overall_status === 'LIMITED'     ? 'text-yellow-400' :
+                    selectedIntegrity.overall_status === 'WEAK'        ? 'text-orange-400' :
+                    selectedIntegrity.overall_status === 'UNRESOLVED'  ? 'text-red-400' :
+                    'text-slate-400'
+                  }`}>
+                    {selectedIntegrity.overall_status.replace(/_/g, ' ')}
+                  </span>
+                  <div className="text-right text-xs text-slate-400 space-y-0.5">
+                    <div>{selectedIntegrity.evidence_count} observation{selectedIntegrity.evidence_count !== 1 ? 's' : ''}</div>
+                    <div>{selectedIntegrity.source_count} source{selectedIntegrity.source_count !== 1 ? 's' : ''}</div>
+                    {selectedIntegrity.open_conflict_count > 0 && (
+                      <div className="text-red-400">{selectedIntegrity.open_conflict_count} open conflict{selectedIntegrity.open_conflict_count !== 1 ? 's' : ''}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dimensions table */}
+                <div className="space-y-2 mb-4">
+                  {([
+                    ['Freshness',      selectedIntegrity.freshness_result],
+                    ['Source',         selectedIntegrity.source_result],
+                    ['Independence',   selectedIntegrity.independence_result],
+                    ['Corroboration',  selectedIntegrity.corroboration_result],
+                    ['Consistency',    selectedIntegrity.consistency_result],
+                  ] as [string, DimensionResult | null][]).map(([label, dim]) => (
+                    <div key={label} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/40 border border-slate-700/50">
+                      <div className="w-28 shrink-0 text-xs text-slate-400 font-medium pt-0.5">{label}</div>
+                      {dim ? (
+                        <div className="flex-1">
+                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded mb-1 ${
+                            ['STRONG','STRONGLY_CORROBORATED','NO_DETECTED_CONFLICT','HIGH_SOURCE_DIVERSITY','CURRENT'].some(s => dim.status.includes(s))
+                              ? 'bg-green-500/15 text-green-400 border border-green-500/20'
+                              : ['WEAK','HAS_OPEN_CONFLICTS','TERTIARY','UNRESOLVABLE'].some(s => dim.status.includes(s))
+                              ? 'bg-red-500/15 text-red-400 border border-red-500/20'
+                              : ['LIMITED','SINGLE_SOURCE','STALE','ORDERING_AMBIGUITY','PARTIAL'].some(s => dim.status.includes(s))
+                              ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20'
+                              : 'bg-slate-700/40 text-slate-400 border border-slate-600/30'
+                          }`}>
+                            {dim.status.replace(/_/g, ' ')}
+                          </span>
+                          <div className="text-[11px] text-slate-500">{dim.reason}</div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-600">—</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Why section */}
+                {selectedIntegrity.explanation_lines.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Why this assessment</div>
+                    <div className="space-y-1">
+                      {selectedIntegrity.explanation_lines.map((line, i) => {
+                        const isWarning = line.toLowerCase().includes('single') ||
+                          line.toLowerCase().includes('limited') ||
+                          line.toLowerCase().includes('only one') ||
+                          line.toLowerCase().includes('conflict')
+                        return (
+                          <div key={i} className={`flex items-start gap-2 text-xs ${
+                            isWarning ? 'text-yellow-400/80' : 'text-slate-300'
+                          }`}>
+                            {isWarning
+                              ? <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                              : <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />}
+                            <span>{line}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Limitations */}
+                {selectedIntegrity.limitations.length > 0 && (
+                  <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/40">
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Limitations</div>
+                    <div className="space-y-1">
+                      {selectedIntegrity.limitations.map((lim, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs text-slate-500">
+                          <span className="shrink-0 mt-0.5">•</span>
+                          <span>{lim}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-3 text-[10px] text-slate-600">
+                  Evaluated at {format(new Date(selectedIntegrity.evaluated_at), 'MMM d, HH:mm:ss')} UTC
+                </div>
+              </div>
+            )}
+
+
             {/* ── Phase 16 — Evidence Reliability Calibration & Uncertainty Boundaries ───── */}
             {selectedReliability && (
-              <div className="mt-8 pt-6 border-t border-slate-800">
+              <div className="glass-card p-5">
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -2110,18 +1977,153 @@ export function PaymentInspector() {
                 )}
               </div>
             )}
-          </div>
-        </div>
-        )}
+
+              {/* Evidence Evolution — Phase 11 */}
+              <div className="glass-card p-5 lg:col-span-2">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <span className="text-purple-400">⏱️</span> Evidence Evolution
+                  </h4>                    <button
+                      onClick={() => recomputeEvolution(selectedPayment.razorpay_payment_id)}
+                      disabled={recomputeLoading}
+                      className="neo-btn text-xs text-purple-300 px-3 py-1.5 disabled:opacity-50 transition-all duration-200"
+                  >
+                    {recomputeLoading ? 'Recomputing...' : 'Recompute Now'}
+                  </button>
+                </div>
+
+                {/* Dimension filter bar */}
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {['ALL', 'EVIDENCE', 'CORROBORATION', 'INDEPENDENCE', 'FRESHNESS', 'CONSISTENCY', 'INTEGRITY', 'METHODOLOGY'].map(dim => (
+                    <button
+                      key={dim}
+                      onClick={() => setDimensionFilter(dim)}
+                      className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+                        dimensionFilter === dim
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600'
+                      }`}
+                    >
+                      {dim}
+                    </button>
+                  ))}
+                </div>
+
+                {stateHistory.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 text-sm">
+                    No material evidence-state change detected.
+                  </div>
+                ) : (
+                  <div className="relative">
+                    {/* Vertical timeline */}
+                    <div className="absolute left-3 top-0 bottom-0 w-px bg-slate-700" />
+                    <div className="space-y-0">
+                      {stateHistory.map((snap) => {
+                        const snapChanges = evolutionChanges.filter(c => {
+                          const matchesPair = c.current_snapshot_id === snap.snapshot_id
+                          const matchesDim = dimensionFilter === 'ALL' || c.dimension === dimensionFilter
+                          return matchesPair && matchesDim
+                        })
+
+                        const integrityColor =
+                          snap.overall_integrity_status === 'VERY_STRONG' ? 'text-emerald-400' :
+                          snap.overall_integrity_status === 'STRONG' ? 'text-green-400' :
+                          snap.overall_integrity_status === 'LIMITED' ? 'text-amber-400' :
+                          snap.overall_integrity_status === 'WEAK' ? 'text-orange-400' :
+                          snap.overall_integrity_status === 'UNRESOLVED' ? 'text-red-400' :
+                          'text-slate-400'
+
+                        return (
+                          <div key={snap.snapshot_id} className="pl-8 pb-4">
+                            {/* Timeline node */}
+                            <div className="absolute left-1 w-5 h-5 rounded-full bg-slate-800 border-2 border-purple-500/60 flex items-center justify-center" style={{ marginTop: '2px' }}>
+                              <div className="w-2 h-2 rounded-full bg-purple-500" />
+                            </div>
+
+                            {/* Snapshot card */}
+                            <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-slate-400 font-mono">
+                                  {format(new Date(snap.evaluation_time), 'MMM d, HH:mm:ss')}
+                                </span>
+                                <span className={`text-xs font-semibold ${integrityColor}`}>
+                                  {snap.overall_integrity_status}
+                                </span>
+                              </div>
+                              <div className="flex gap-3 text-[10px] text-slate-500">
+                                <span>{snap.evidence_count} evidence</span>
+                                <span>{snap.conflict_count} conflicts</span>
+                                <span>v{snap.methodology_version}</span>
+                              </div>
+                            </div>
+
+                            {/* Change cards between previous and this snapshot */}
+                            {snapChanges.length > 0 && (
+                              <div className="mt-2 space-y-2">
+                                {snapChanges.map(change => (
+                                  <div key={change.change_id} className="ml-2 p-3 rounded-lg bg-purple-500/5 border border-purple-500/20">
+                                    <div className="flex items-start justify-between mb-1">
+                                      <div>
+                                        <span className="text-[10px] font-semibold text-purple-300 uppercase tracking-wider">
+                                          {change.change_type.replace(/_/g, ' ')}
+                                        </span>
+                                        <span className="ml-2 text-[10px] text-slate-500">{change.dimension}</span>
+                                      </div>
+                                      <span className="text-[10px] text-slate-500 font-mono">
+                                        {format(new Date(change.detected_at), 'HH:mm:ss')}
+                                      </span>
+                                    </div>
+
+                                    {change.explanation && (
+                                      <p className="text-[11px] text-slate-300 mb-1">{change.explanation}</p>
+                                    )}
+
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {change.previous_value && change.current_value && (
+                                        <span className="text-[10px] font-mono">
+                                          <span className="text-slate-500">{change.previous_value}</span>
+                                          <span className="text-slate-600 mx-1">→</span>
+                                          <span className="text-slate-200">{change.current_value}</span>
+                                        </span>
+                                      )}
+                                      {change.direct_cause && (
+                                        <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">
+                                          {change.direct_cause.replace(/_/g, ' ')}
+                                        </span>
+                                      )}
+                                      {change.magnitude && (
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                                          change.magnitude === 'MAJOR' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                          change.magnitude === 'MODERATE' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                          'bg-slate-800 text-slate-400 border-slate-700'
+                                        }`}>
+                                          {change.magnitude}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
 
       {/* Phase 18 — Decision Replay & Differential Analysis */}
       {selectedPayment && (
         <div className="col-span-1 lg:col-span-2 glass-card overflow-hidden animate-slide-up">
-          <div className="p-4 border-b border-slate-700/50 bg-slate-800/80 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-violet-400"></span>
-              Phase 18 — Decision Replay &amp; Differential Analysis
-            </h2>
+          <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
+            <h3
+              className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em]"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              <GitCompare className="h-4 w-4" style={{ color: 'var(--color-text-accent)' }} />
+              Decision replay &amp; differential analysis
+            </h3>
             <div className="flex gap-2">
               <button
                 onClick={() => setReplayTab('replay')}
@@ -2233,7 +2235,7 @@ export function PaymentInspector() {
 
                     {replayResult.mismatch_details && (
                       <div className="p-3 rounded-lg bg-rose-900/20 border border-rose-500/30">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-rose-400 mb-2">⚠ Mismatch Details</div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-rose-400 mb-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Mismatch Details</div>
                         <pre className="text-[10px] text-rose-300 font-mono overflow-x-auto whitespace-pre-wrap">
                           {JSON.stringify(replayResult.mismatch_details, null, 2)}
                         </pre>
@@ -2388,7 +2390,10 @@ export function PaymentInspector() {
           </div>
         </div>
         )}
-      </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

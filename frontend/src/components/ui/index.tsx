@@ -23,7 +23,7 @@ export function PageHeader({
   actions?: ReactNode
 }) {
   return (
-    <div className="glass-card-elevated premium-ring p-6 sm:p-7">
+    <div className="glass-card-elevated premium-ring p-6 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3.5">
           <span

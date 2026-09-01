@@ -16,6 +16,7 @@ import {
   Layers,
   CheckCircle2,
   Search,
+  Lightbulb,
 } from 'lucide-react'
 
 interface FraudSignal {
@@ -70,14 +71,14 @@ const SEVERITY_CONFIG: Record<string, { bg: string; text: string; icon: React.El
 }
 
 const SIGNAL_TYPE_LABELS: Record<string, string> = {
-  AMOUNT_ANOMALY: '💰 Amount Anomaly',
-  VELOCITY_BURST: '⚡ Velocity Burst',
-  SOURCE_CONCENTRATION: '🔍 Source Concentration',
-  STATUS_CONTRADICTION: '❌ Status Contradiction',
-  TIMESTAMP_INVERSION: '🕐 Timestamp Inversion',
-  MISSING_EVIDENCE_GAPS: '🕳️ Missing Evidence',
-  CONFLICT_CLUSTER: '🔴 Conflict Cluster',
-  HIGH_AMOUNT: '💎 High Value',
+  AMOUNT_ANOMALY: 'Amount Anomaly',
+  VELOCITY_BURST: 'Velocity Burst',
+  SOURCE_CONCENTRATION: 'Source Concentration',
+  STATUS_CONTRADICTION: 'Status Contradiction',
+  TIMESTAMP_INVERSION: 'Timestamp Inversion',
+  MISSING_EVIDENCE_GAPS: 'Missing Evidence',
+  CONFLICT_CLUSTER: 'Conflict Cluster',
+  HIGH_AMOUNT: 'High Value',
 }
 
 function SignalCard({ signal }: { signal: FraudSignal }) {
@@ -118,7 +119,10 @@ function SignalCard({ signal }: { signal: FraudSignal }) {
           </div>
 
           <div className="text-[11px] text-amber-300/80 bg-amber-500/5 rounded-lg p-2 border border-amber-500/10">
-            💡 {signal.recommendation}
+            <span className="flex items-start gap-1.5">
+              <Lightbulb className="w-3 h-3 mt-0.5 shrink-0" />
+              <span>{signal.recommendation}</span>
+            </span>
           </div>
         </div>
       </div>
@@ -159,7 +163,7 @@ export function FraudAlerts() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="glass-card-elevated p-6 sm:p-8">
+      <div className="glass-card-elevated premium-ring p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">

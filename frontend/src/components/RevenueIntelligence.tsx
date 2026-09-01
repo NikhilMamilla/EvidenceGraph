@@ -87,7 +87,7 @@ export function RevenueIntelligence() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="glass-card-elevated p-6 sm:p-8">
+      <div className="glass-card-elevated premium-ring p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="neo-pressed p-2.5 rounded-xl bg-emerald-500/10">
             <DollarSign className="w-5 h-5 text-emerald-400" />

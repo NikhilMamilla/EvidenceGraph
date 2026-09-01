@@ -169,7 +169,7 @@ export function InvestigationCenter() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="glass-card-elevated p-6 sm:p-8">
+      <div className="glass-card-elevated premium-ring p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
@@ -357,7 +357,7 @@ export function InvestigationCenter() {
               {/* Anomaly Flags */}
               {profile.anomaly_flags.length > 0 && (
                 <div className="glass-card p-4 border-l-2 border-l-amber-500">
-                  <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">⚠ Anomaly Flags</h4>
+                  <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-1.5"><AlertTriangle className="w-3 h-3" /> Anomaly Flags</h4>
                   <div className="flex gap-2 flex-wrap">
                     {profile.anomaly_flags.map(flag => (
                       <span key={flag} className="text-[10px] bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/20 font-bold">

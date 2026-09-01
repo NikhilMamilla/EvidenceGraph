@@ -92,9 +92,9 @@ export const SECTION_INTROS: Record<string, SectionIntroProps> = {
     title: 'Payment Inspector',
     tagline: 'the ground-truth view of a single payment',
     kind: 'platform',
-    what: 'A per-payment inspector — the canonical payment record, its full lifecycle of events, and every piece of evidence attached to it.',
-    how: 'Loads the payment with its event history and evidence observations, including method details and timestamps.',
-    why: 'The ground truth on one payment before you form any judgement about it.',
+    what: 'A per-payment inspector. Pick a payment from the row on top, then read it across three views — Overview (record, processing, consistency), Evidence (facts, claims, coverage, lineage) and Integrity & Replay.',
+    how: 'Selecting a payment loads fourteen endpoints in parallel — events, evidence, facts, structure, consistency, integrity, coverage, lineage, reliability, evolution and replay — and lays each result out as its own panel.',
+    why: 'The ground truth on one payment, grouped so you can answer one question at a time instead of scrolling one endless column.',
   },
   operations: {
     id: 'operations',
