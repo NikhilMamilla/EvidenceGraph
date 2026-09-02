@@ -77,7 +77,13 @@ untrusted component:
 1. Rotate the reused DB / webhook secret.
 2. `git log -p -- .env` → confirm it never appears in history (it does not in
    the current branch; check `main` if you merge).
-3. Scan history for the reused string:
-   `git grep -I 'Keerthimouna' $(git rev-list --all)` → must return nothing.
+3. Scan history for the reused string. Do **not** paste the secret into this
+   file — read it from the untracked `.env` so the check never becomes its own
+   match:
+
+   ```bash
+   SECRET=$(grep -oP '(?<=^RAZORPAY_WEBHOOK_SECRET=).*' .env)
+   git grep -I -- "$SECRET" $(git rev-list --all)   # must return nothing
+   ```
 4. Set `ADMIN_API_KEY`.
 5. Confirm `docs/`, `README.md`, and screenshots contain no real key material.
