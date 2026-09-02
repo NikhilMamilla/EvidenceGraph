@@ -57,6 +57,7 @@ class FailureDashboardResponse(BaseModel):
     failure_categories: list[FailureCategory]
     recent_failures: list[PaymentFailureAnalysis]
     hourly_failure_trend: list[dict[str, Any]]
+    trend_window: str = "Last 24 hours"    # what span the trend actually covers
     methodology_version: str
 
 
@@ -98,6 +99,7 @@ class RevenueMetric(BaseModel):
 class RevenueTimeSeries(BaseModel):
     """Revenue data point over time."""
     timestamp: datetime
+    label: str = ""          # human tick label for the bucket ("14h" / "Aug 24")
     gmv: float
     success_count: int
     failure_count: int
@@ -109,6 +111,7 @@ class RevenueIntelligenceResponse(BaseModel):
     evaluated_at: datetime
     metrics: list[RevenueMetric]
     time_series: list[RevenueTimeSeries]
+    series_window: str = "Last 24 hours"   # what span the series actually covers
     total_gmv: float
     avg_transaction_value: float
     success_rate: float

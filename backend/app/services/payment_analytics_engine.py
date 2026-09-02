@@ -80,6 +80,57 @@ def _generate_notification_id(prefix: str, entity: str, ts: datetime) -> str:
 class PaymentAnalyticsEngine:
     """Real-world payment analytics for Razorpay-scale systems."""
 
+    # ── Shared: adaptive activity window ──
+    #
+    # Trend charts used to bucket strictly over the last 24 hours. On a demo or
+    # test-mode dataset the newest payment is often days old, so every bucket was
+    # zero and the chart rendered as an empty box. We now widen the window to
+    # cover the data that actually exists and label what is being shown, rather
+    # than drawing 24 zeros and calling it a trend.
+
+    @classmethod
+    def _activity_window(cls, db: Session, now: datetime) -> tuple[list[tuple[datetime, datetime, str]], str]:
+        """Return (buckets, window_label) where each bucket is (start, end, tick_label)."""
+        try:
+            latest = db.execute(select(func.max(Payment.last_observed_at))).scalar()
+        except Exception:  # noqa: BLE001
+            latest = None
+
+        if latest is not None and latest.tzinfo is None:
+            latest = latest.replace(tzinfo=timezone.utc)
+
+        # Anything in the last 24h -> keep the familiar hourly view.
+        if latest is not None and (now - latest) <= timedelta(hours=24):
+            buckets = [
+                (now - timedelta(hours=h + 1), now - timedelta(hours=h),
+                 (now - timedelta(hours=h)).strftime("%Hh"))
+                for h in range(24)
+            ]
+            buckets.reverse()
+            return buckets, "Last 24 hours"
+
+        if latest is None:
+            # No payments at all — still return the 24h grid so the shape is stable.
+            buckets = [
+                (now - timedelta(hours=h + 1), now - timedelta(hours=h),
+                 (now - timedelta(hours=h)).strftime("%Hh"))
+                for h in range(24)
+            ]
+            buckets.reverse()
+            return buckets, "Last 24 hours"
+
+        # Otherwise fall back to daily buckets spanning the real data.
+        span_days = max(1, min(30, (now.date() - latest.date()).days + 1))
+        day_end = datetime(now.year, now.month, now.day, tzinfo=timezone.utc) + timedelta(days=1)
+        buckets = [
+            (day_end - timedelta(days=d + 1), day_end - timedelta(days=d),
+             (day_end - timedelta(days=d + 1)).strftime("%b %d"))
+            for d in range(span_days)
+        ]
+        buckets.reverse()
+        return buckets, f"Last {span_days} day{'s' if span_days != 1 else ''}"
+
+
     # ── 1. Payment Failure Intelligence ──
 
     @classmethod
@@ -158,22 +209,22 @@ class PaymentAnalyticsEngine:
 
         # Hourly failure trend (last 24 hours)
         hourly_trend: List[dict[str, Any]] = []
+        trend_window = "Last 24 hours"
         try:
-            for h in range(24):
-                hour_start = now - timedelta(hours=h + 1)
-                hour_end = now - timedelta(hours=h)
+            buckets, trend_window = cls._activity_window(db, now)
+            for start, end, tick in buckets:
                 count = db.execute(
                     select(func.count(Payment.internal_id)).where(
                         Payment.status == "failed",
-                        Payment.last_observed_at >= hour_start,
-                        Payment.last_observed_at < hour_end,
+                        Payment.last_observed_at >= start,
+                        Payment.last_observed_at < end,
                     )
                 ).scalar() or 0
                 hourly_trend.append({
-                    "hour": hour_end.isoformat(),
+                    "hour": end.isoformat(),
+                    "label": tick,
                     "failure_count": count,
                 })
-            hourly_trend.reverse()
         except Exception:
             pass
 
@@ -188,6 +239,7 @@ class PaymentAnalyticsEngine:
             failure_categories=failure_categories,
             recent_failures=recent_failures,
             hourly_failure_trend=hourly_trend,
+            trend_window=trend_window,
             methodology_version=METHODOLOGY_VERSION,
         )
 
@@ -357,6 +409,12 @@ class PaymentAnalyticsEngine:
         captured = db.execute(
             select(func.count(Payment.internal_id)).where(Payment.status == "captured")
         ).scalar() or 0
+        # Count real failures only. Treating every non-captured payment as failed
+        # (total - captured) reported authorized / pending / paid rows as losses,
+        # which contradicts "absence of capture is not evidence of failure".
+        failed_strict = db.execute(
+            select(func.count(Payment.internal_id)).where(Payment.status == "failed")
+        ).scalar() or 0
         success_rate = (captured / total * 100) if total > 0 else 0.0
 
         # Metrics
@@ -393,41 +451,40 @@ class PaymentAnalyticsEngine:
             ),
             RevenueMetric(
                 label="Failed Payments",
-                value=float(total - captured),
+                value=float(failed_strict),
                 unit="COUNT",
-                trend="DOWN" if (total - captured) < total * 0.1 else "UP",
+                trend="DOWN" if failed_strict < total * 0.1 else "UP",
             ),
         ]
 
         # Time series (last 24 hours)
         time_series: List[RevenueTimeSeries] = []
+        series_window = "Last 24 hours"
         try:
-            for h in range(24):
-                hour_start = now - timedelta(hours=h + 1)
-                hour_end = now - timedelta(hours=h)
-
+            buckets, series_window = cls._activity_window(db, now)
+            for start, end, tick in buckets:
                 hour_gmv = db.execute(
                     select(func.sum(Payment.amount_minor)).where(
                         Payment.status == "captured",
                         Payment.amount_minor.isnot(None),
-                        Payment.last_observed_at >= hour_start,
-                        Payment.last_observed_at < hour_end,
+                        Payment.last_observed_at >= start,
+                        Payment.last_observed_at < end,
                     )
                 ).scalar() or 0
 
                 hour_success = db.execute(
                     select(func.count(Payment.internal_id)).where(
                         Payment.status == "captured",
-                        Payment.last_observed_at >= hour_start,
-                        Payment.last_observed_at < hour_end,
+                        Payment.last_observed_at >= start,
+                        Payment.last_observed_at < end,
                     )
                 ).scalar() or 0
 
                 hour_fail = db.execute(
                     select(func.count(Payment.internal_id)).where(
                         Payment.status == "failed",
-                        Payment.last_observed_at >= hour_start,
-                        Payment.last_observed_at < hour_end,
+                        Payment.last_observed_at >= start,
+                        Payment.last_observed_at < end,
                     )
                 ).scalar() or 0
 
@@ -435,13 +492,13 @@ class PaymentAnalyticsEngine:
                 sr = (hour_success / hour_total * 100) if hour_total > 0 else 0.0
 
                 time_series.append(RevenueTimeSeries(
-                    timestamp=hour_end,
+                    timestamp=end,
+                    label=tick,
                     gmv=round((hour_gmv or 0) / 100.0, 2),
                     success_count=hour_success,
                     failure_count=hour_fail,
                     success_rate=round(sr, 1),
                 ))
-            time_series.reverse()
         except Exception as e:
             logger.warning("Revenue time series query failed: %s", e)
 
@@ -449,6 +506,7 @@ class PaymentAnalyticsEngine:
             evaluated_at=now,
             metrics=metrics,
             time_series=time_series,
+            series_window=series_window,
             total_gmv=round(total_gmv, 2),
             avg_transaction_value=round(avg_txn, 2),
             success_rate=round(success_rate, 1),

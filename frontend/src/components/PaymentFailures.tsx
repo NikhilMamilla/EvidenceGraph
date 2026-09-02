@@ -34,7 +34,8 @@ interface FailureDashboard {
   failure_rate: number
   failure_categories: FailureCategory[]
   recent_failures: any[]
-  hourly_failure_trend: Array<{ hour: string; failure_count: number }>
+  hourly_failure_trend: Array<{ hour: string; label?: string; failure_count: number }>
+  trend_window: string
 }
 
 interface FunnelStage {
@@ -234,30 +235,64 @@ export function PaymentFailures() {
       </div>
 
       {/* Failure Trend */}
-      {dashboard && dashboard.hourly_failure_trend.length > 0 && (
-        <div className="glass-card p-6">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Failure Trend (24h)</h3>
-          <div className="flex items-end gap-1 h-32">
-            {dashboard.hourly_failure_trend.map((point, i) => {
-              const maxVal = Math.max(...dashboard.hourly_failure_trend.map(p => p.failure_count), 1)
-              const height = (point.failure_count / maxVal) * 100
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full bg-rose-500/40 rounded-t transition-all duration-500"
-                    style={{ height: `${Math.max(2, height)}%` }}
-                  />
-                  {i % 6 === 0 && (
-                    <span className="text-[8px] text-slate-600">
-                      {new Date(point.hour).getHours()}h
+      {dashboard && dashboard.hourly_failure_trend.length > 0 && (() => {
+        const series = dashboard.hourly_failure_trend
+        const maxVal = Math.max(...series.map(p => p.failure_count))
+        const hasFailures = maxVal > 0
+        const step = Math.max(1, Math.ceil(series.length / 8))
+        const tick = (p: { hour: string; label?: string }) =>
+          p.label || `${new Date(p.hour).getHours()}h`
+
+        return (
+          <div className="glass-card p-6">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>
+                Failure Trend
+              </h3>
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                    style={{ color: 'var(--color-text-tertiary)', border: '1px solid var(--color-border)' }}>
+                {dashboard.trend_window || 'Last 24 hours'}
+              </span>
+            </div>
+
+            {!hasFailures ? (
+              <div className="neo-inset rounded-xl px-6 py-10 text-center">
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-success)' }}>
+                  No failed payments in this window
+                </p>
+                <p className="mt-1.5 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+                  An empty trend here is a good outcome, not missing data.
+                </p>
+              </div>
+            ) : (
+              <div className="flex h-40 items-end gap-1">
+                {series.map((point, i) => (
+                  <div key={i} className="group relative flex flex-1 flex-col items-center gap-1">
+                    <div className="absolute -top-8 z-10 hidden whitespace-nowrap rounded px-2 py-1 text-[10px] group-hover:block"
+                         style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-primary)' }}>
+                      {tick(point)} · {point.failure_count} failed
+                    </div>
+                    <div className="w-full flex-1 flex items-end">
+                      <div
+                        className="w-full rounded-t transition-all duration-500"
+                        style={{
+                          height: `${point.failure_count > 0 ? Math.max(4, (point.failure_count / maxVal) * 100) : 2}%`,
+                          background: point.failure_count > 0
+                            ? 'color-mix(in srgb, var(--color-danger) 55%, transparent)'
+                            : 'var(--color-border)',
+                        }}
+                      />
+                    </div>
+                    <span className="h-3 text-[8px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                      {i % step === 0 ? tick(point) : ''}
                     </span>
-                  )}
-                </div>
-              )
-            })}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {loading && (
         <div className="glass-card p-8 flex items-center justify-center gap-4">

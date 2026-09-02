@@ -856,9 +856,10 @@ export function PaymentInspector() {
           <SubTabs tabs={tabs} active={detailTab} onChange={setDetailTab} />
 
           {/* ══ OVERVIEW ═════════════════════════════════════════════ */}
+          {/* ══ OVERVIEW — one panel per row, top to bottom ═══════════ */}
           {detailTab === 'overview' && (
-            <div className="panel-masonry">
-              <div className="glass-card p-5 panel-full">
+            <div className="space-y-6">
+              <div className="glass-card p-5">
               <div className="flex justify-between items-center pb-4 border-b border-white/5">
                 <div>
                   <h3 className="text-2xl font-bold text-white mb-1">{formatCurrency(selectedPayment.amount_minor, selectedPayment.currency)}</h3>
@@ -938,58 +939,6 @@ export function PaymentInspector() {
                   </div>
                 </div>
               )}
-
-
-              {selectedTimeline && (
-                <div className="glass-card p-5">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
-                      Evidence Timeline
-                    </h4>
-                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
-                      {selectedTimeline.total_evidence_count} observations
-                    </span>
-                  </div>
-                  <div className="space-y-4">
-                    {selectedTimeline.timeline.map((entry, idx) => (
-                      <div key={idx} className="neo-card p-4">
-                        <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-800">
-                          <div className="flex items-center gap-2">
-                            <div className="font-mono text-sm text-indigo-400">{entry.event_type}</div>
-                            <span className="text-[10px] uppercase tracking-wider bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
-                              {entry.source_type}
-                            </span>
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {entry.event_timestamp ? format(new Date(entry.event_timestamp), 'MMM d, yyyy HH:mm:ss.SSS') : 'Unknown'}
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {entry.evidence.map(obs => (
-                            <div key={obs.internal_id} className="flex flex-col p-2 bg-slate-800/60 rounded border border-slate-700/50">
-                              <div className="text-[10px] text-slate-500 mb-1 font-mono">{obs.evidence_type}</div>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-sm font-medium text-slate-200">
-                                  {obs.value_type === 'INTEGER_MINOR_UNITS' && obs.evidence_type.includes('AMOUNT') 
-                                    ? formatCurrency(parseInt(obs.value || '0', 10), 'INR') // Simplify for display
-                                    : obs.value}
-                                </span>
-                                <span className="text-[10px] text-slate-500">{obs.value_type}</span>
-                              </div>
-                            </div>
-                          ))}
-                          {(entry.evidence ?? []).length === 0 && (
-                            <div className="text-xs text-slate-500 col-span-2 italic">No evidence extracted.</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
 
               {selectedConsistency !== null && (
                 <div className="glass-card p-5">
@@ -1147,91 +1096,65 @@ export function PaymentInspector() {
 
                 </div>
               )}
+
+              {selectedTimeline && (
+                <div className="glass-card p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                      Evidence Timeline
+                    </h4>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
+                      {selectedTimeline.total_evidence_count} observations
+                    </span>
+                  </div>
+                  <div className="space-y-4">
+                    {selectedTimeline.timeline.map((entry, idx) => (
+                      <div key={idx} className="neo-card p-4">
+                        <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <div className="font-mono text-sm text-indigo-400">{entry.event_type}</div>
+                            <span className="text-[10px] uppercase tracking-wider bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+                              {entry.source_type}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {entry.event_timestamp ? format(new Date(entry.event_timestamp), 'MMM d, yyyy HH:mm:ss.SSS') : 'Unknown'}
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {entry.evidence.map(obs => (
+                            <div key={obs.internal_id} className="flex flex-col p-2 bg-slate-800/60 rounded border border-slate-700/50 basis-full md:basis-[calc(50%-0.25rem)] grow-0">
+                              <div className="text-[10px] text-slate-500 mb-1 font-mono">{obs.evidence_type}</div>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-sm font-medium text-slate-200">
+                                  {obs.value_type === 'INTEGER_MINOR_UNITS' && obs.evidence_type.includes('AMOUNT') 
+                                    ? formatCurrency(parseInt(obs.value || '0', 10), 'INR') // Simplify for display
+                                    : obs.value}
+                                </span>
+                                <span className="text-[10px] text-slate-500">{obs.value_type}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {(entry.evidence ?? []).length === 0 && (
+                            <div className="text-xs text-slate-500 w-full italic">No evidence extracted.</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* ══ EVIDENCE ═════════════════════════════════════════════ */}
           {detailTab === 'evidence' && (
-            <div className="panel-masonry">
-              {/* Phase 13 — Reconciled Evidence Facts Layer */}
-              <div className="glass-card p-5">
-                <div className="flex justify-between items-center mb-4">
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      Reconciled Evidence Facts
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Canonical real-world facts normalized across observations
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => selectedPayment && triggerReconciliation(selectedPayment.razorpay_payment_id)}
-                      disabled={reconciliationLoading}
-                      className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 px-2.5 py-1 rounded border border-emerald-500/30 disabled:opacity-50 transition-colors"
-                    >
-                      {reconciliationLoading ? 'Reconciling...' : 'Reconcile'}
-                    </button>
-                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
-                      {selectedFacts.length} facts
-                    </span>
-                  </div>
-                </div>
-
-                {selectedFacts.length === 0 ? (
-                  <div className="p-4 rounded-lg border border-dashed border-slate-700 bg-slate-900/20 text-center text-xs text-slate-500">
-                    No reconciled facts recorded yet. Click Reconcile to evaluate observations.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedFacts.map((fact) => (
-                      <div key={fact.internal_id} className="neo-card p-4 border-emerald-500/10">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                              FACT #{fact.internal_id}
-                            </span>
-                            <span className="font-mono text-xs font-semibold text-slate-200">
-                              {fact.fact_type}
-                            </span>
-                          </div>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                            {fact.status}
-                          </span>
-                        </div>
-
-                        <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-xs text-slate-400">Canonical Value:</span>
-                          <span className="text-sm font-mono font-medium text-emerald-300">
-                            {fact.canonical_value}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
-                          <div>
-                            <span className="text-slate-500">Observations:</span>{' '}
-                            <span className="font-semibold text-slate-200">{fact.observation_count}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">Distinct Sources:</span>{' '}
-                            <span className="font-semibold text-slate-200">{fact.distinct_source_count}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">First Seen:</span>{' '}
-                            <span>{fact.first_observed_at ? format(new Date(fact.first_observed_at), 'HH:mm:ss') : '—'}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500">Last Seen:</span>{' '}
-                            <span>{fact.last_observed_at ? format(new Date(fact.last_observed_at), 'HH:mm:ss') : '—'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
+            <div className="space-y-6">
+              <div className="grid items-start gap-6 lg:grid-cols-2">
+                {/* left column */}
+                <div className="space-y-6">
               {selectedQuality && selectedQuality.evidence_quality.length > 0 && (
                 <div className="glass-card p-5">
                   <div className="flex justify-between items-center mb-4">
@@ -1293,61 +1216,6 @@ export function PaymentInspector() {
                   </div>
                 </div>
               )}
-
-              {selectedGraph && selectedGraph.edge_count > 0 && (
-                <div className="glass-card p-5">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                      <Link2 className="w-4 h-4 text-indigo-400" /> Evidence Relationships
-                    </h4>
-                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
-                      {selectedGraph.edge_count} edges
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {/* Group edges by type for easier reading */}
-                    {Array.from(new Set(selectedGraph.edges.map(e => e.relationship_type))).sort().map(edgeType => {
-                      const edgesOfType = selectedGraph.edges.filter(e => e.relationship_type === edgeType)
-                      
-                      // Style badges differently based on type
-                      let badgeStyle = "bg-slate-700/50 text-slate-300 border-slate-600"
-                      if (edgeType === 'INDEPENDENCE_CANDIDATE') badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                      if (edgeType === 'SAME_SOURCE') badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                      if (edgeType === 'DERIVED_FROM') badgeStyle = "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      
-                      return (
-                        <div key={edgeType} className="mb-4">
-                          <div className="mb-2">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-mono border uppercase tracking-wider ${badgeStyle}`}>
-                              {edgeType}
-                            </span>
-                          </div>
-                          <div className="space-y-1">
-                            {edgesOfType.map(edge => {
-                              const sourceNode = selectedGraph.nodes.find(n => n.evidence_id === edge.source_evidence_id)
-                              const targetNode = selectedGraph.nodes.find(n => n.evidence_id === edge.target_evidence_id)
-                              
-                              return (
-                                <div key={edge.edge_id} className="text-xs flex items-center gap-2 bg-slate-900/40 p-2 rounded border border-slate-800">
-                                  <div className="truncate flex-1 font-mono text-slate-400">
-                                    [#{sourceNode?.evidence_id}] {sourceNode?.evidence_type}
-                                  </div>
-                                  <div className="text-slate-600">→</div>
-                                  <div className="truncate flex-1 font-mono text-slate-400">
-                                    [#{targetNode?.evidence_id}] {targetNode?.evidence_type}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
 
               {selectedStructure && selectedStructure.snapshot && (
                 <div className="glass-card p-5">
@@ -1458,13 +1326,147 @@ export function PaymentInspector() {
                   </div>
                 </div>
               )}
+                </div>
+                {/* right column */}
+                <div className="space-y-6">
+              {/* Phase 13 — Reconciled Evidence Facts Layer */}
+              <div className="glass-card p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                      Reconciled Evidence Facts
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Canonical real-world facts normalized across observations
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => selectedPayment && triggerReconciliation(selectedPayment.razorpay_payment_id)}
+                      disabled={reconciliationLoading}
+                      className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 px-2.5 py-1 rounded border border-emerald-500/30 disabled:opacity-50 transition-colors"
+                    >
+                      {reconciliationLoading ? 'Reconciling...' : 'Reconcile'}
+                    </button>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
+                      {selectedFacts.length} facts
+                    </span>
+                  </div>
+                </div>
 
+                {selectedFacts.length === 0 ? (
+                  <div className="p-4 rounded-lg border border-dashed border-slate-700 bg-slate-900/20 text-center text-xs text-slate-500">
+                    No reconciled facts recorded yet. Click Reconcile to evaluate observations.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedFacts.map((fact) => (
+                      <div key={fact.internal_id} className="neo-card p-4 border-emerald-500/10">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                              FACT #{fact.internal_id}
+                            </span>
+                            <span className="font-mono text-xs font-semibold text-slate-200">
+                              {fact.fact_type}
+                            </span>
+                          </div>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                            {fact.status}
+                          </span>
+                        </div>
 
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-xs text-slate-400">Canonical Value:</span>
+                          <span className="text-sm font-mono font-medium text-emerald-300">
+                            {fact.canonical_value}
+                          </span>
+                        </div>
 
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
+                          <div>
+                            <span className="text-slate-500">Observations:</span>{' '}
+                            <span className="font-semibold text-slate-200">{fact.observation_count}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Distinct Sources:</span>{' '}
+                            <span className="font-semibold text-slate-200">{fact.distinct_source_count}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">First Seen:</span>{' '}
+                            <span>{fact.first_observed_at ? format(new Date(fact.first_observed_at), 'HH:mm:ss') : '—'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Last Seen:</span>{' '}
+                            <span>{fact.last_observed_at ? format(new Date(fact.last_observed_at), 'HH:mm:ss') : '—'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedGraph && selectedGraph.edge_count > 0 && (
+                <div className="glass-card p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                      <Link2 className="w-4 h-4 text-indigo-400" /> Evidence Relationships
+                    </h4>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
+                      {selectedGraph.edge_count} edges
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {/* Group edges by type for easier reading */}
+                    {Array.from(new Set(selectedGraph.edges.map(e => e.relationship_type))).sort().map(edgeType => {
+                      const edgesOfType = selectedGraph.edges.filter(e => e.relationship_type === edgeType)
+                      
+                      // Style badges differently based on type
+                      let badgeStyle = "bg-slate-700/50 text-slate-300 border-slate-600"
+                      if (edgeType === 'INDEPENDENCE_CANDIDATE') badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                      if (edgeType === 'SAME_SOURCE') badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                      if (edgeType === 'DERIVED_FROM') badgeStyle = "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      
+                      return (
+                        <div key={edgeType} className="mb-4">
+                          <div className="mb-2">
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-mono border uppercase tracking-wider ${badgeStyle}`}>
+                              {edgeType}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {edgesOfType.map(edge => {
+                              const sourceNode = selectedGraph.nodes.find(n => n.evidence_id === edge.source_evidence_id)
+                              const targetNode = selectedGraph.nodes.find(n => n.evidence_id === edge.target_evidence_id)
+                              
+                              return (
+                                <div key={edge.edge_id} className="text-xs flex items-center gap-2 bg-slate-900/40 p-2 rounded border border-slate-800">
+                                  <div className="truncate flex-1 font-mono text-slate-400">
+                                    [#{sourceNode?.evidence_id}] {sourceNode?.evidence_type}
+                                  </div>
+                                  <div className="text-slate-600">→</div>
+                                  <div className="truncate flex-1 font-mono text-slate-400">
+                                    [#{targetNode?.evidence_id}] {targetNode?.evidence_type}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+                </div>
+              </div>
 
             {/* ── Phase 15 — Evidence Completeness & Coverage Analysis ────── */}
             {selectedCoverage && (
-              <div className="glass-card p-5 panel-full">
+              <div className="glass-card p-5">
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1605,10 +1607,9 @@ export function PaymentInspector() {
               </div>
             )}
 
-
             {/* ── Phase 14 — End-to-End Evidence Lineage & Causal Chain ───── */}
             {selectedLineage && (
-              <div className="glass-card p-5 panel-full">
+              <div className="glass-card p-5">
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1677,10 +1678,12 @@ export function PaymentInspector() {
                   </div>
                 )}
 
-                {/* Lineage Traversal Nodes */}
-                <div className="space-y-2 mb-4">
+                {/* Traversed entities and links sit side by side so neither
+                    needs to be a long scroller stacked on the other. */}
+                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Traversed Entities</div>
-                  <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 gap-2 max-h-[420px] overflow-y-auto pr-1">
                     {selectedLineage.nodes.map((node) => (
                       <div key={node.node_id} className="p-2.5 rounded-lg bg-slate-900/40 border border-slate-800 flex items-start justify-between">
                         <div className="space-y-0.5">
@@ -1710,10 +1713,9 @@ export function PaymentInspector() {
                   </div>
                 </div>
 
-                {/* Lineage Edges (Authoritative Links) */}
-                <div>
+                <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Authoritative & Derived Links ({selectedLineage.evaluation_context.edge_count})</div>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
                     {selectedLineage.edges.map((edge) => (
                       <div key={`${edge.source_node_id}->${edge.edge_type}->${edge.target_node_id}`} className="p-2 rounded bg-slate-900/30 border border-slate-800 text-xs">
                         <div className="flex items-center justify-between text-[10px] font-mono mb-1">
@@ -1735,14 +1737,18 @@ export function PaymentInspector() {
                   </div>
                 </div>
               </div>
+              </div>
             )}
-
             </div>
           )}
 
           {/* ══ INTEGRITY & REPLAY ═══════════════════════════════════ */}
           {detailTab === 'integrity' && (
-            <div className="panel-masonry">
+            <div className="space-y-6">
+              {/* Both columns stretch to the taller one and the last card in
+                  each grows, so the two sides finish level. */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="flex flex-col gap-6 [&>*:last-child]:flex-1">
             {/* ── Phase 9 — Evidence Integrity Panel ─────────────────────── */}
             {selectedIntegrity && (
               <div className="glass-card p-5">
@@ -1859,8 +1865,8 @@ export function PaymentInspector() {
                 </div>
               </div>
             )}
-
-
+                </div>
+                <div className="flex flex-col gap-6 [&>*:last-child]:flex-1">
             {/* ── Phase 16 — Evidence Reliability Calibration & Uncertainty Boundaries ───── */}
             {selectedReliability && (
               <div className="glass-card p-5">
@@ -2113,10 +2119,12 @@ export function PaymentInspector() {
                   </div>
                 )}
               </div>
+                </div>
+              </div>
 
       {/* Phase 18 — Decision Replay & Differential Analysis */}
       {selectedPayment && (
-        <div className="panel-full glass-card overflow-hidden animate-slide-up">
+        <div className="glass-card overflow-hidden animate-slide-up">
           <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
             <h3
               className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em]"

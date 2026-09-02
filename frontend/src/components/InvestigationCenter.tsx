@@ -376,11 +376,22 @@ export function InvestigationCenter() {
                 </h4>
                 <div className="space-y-2">
                   {profile.investigation_steps.map((step, i) => (
-                    <div key={i} className="flex items-start gap-3 neo-card p-3">
-                      <div className="neo-pressed p-1.5 rounded-lg shrink-0">
-                        <span className="text-xs font-bold text-indigo-400">{i + 1}</span>
-                      </div>
-                      <span className="text-xs text-slate-300">{step}</span>
+                    <div key={i} className="flex items-center gap-3 neo-card px-4 py-3">
+                      {/* Fixed square so a single digit is centred rather than
+                          squeezed by padding, and 1 vs 10 stay the same size. */}
+                      <span
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums"
+                        style={{
+                          color: 'var(--color-text-accent)',
+                          background: 'var(--color-accent-glow)',
+                          border: '1px solid var(--color-border-accent)',
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                        {step}
+                      </span>
                     </div>
                   ))}
                 </div>

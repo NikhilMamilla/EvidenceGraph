@@ -138,6 +138,16 @@ flowchart LR
 
 The browser never touches the database — every read goes through the backend.
 
+### Component diagrams
+
+Rendered views of the three subsystems, in [`Architecture-diagrams/`](Architecture-diagrams/):
+
+| Diagram | Covers |
+|---|---|
+| [Real-time payment & evidence ingestion](Architecture-diagrams/Real-time-payment&Evidence-Ingestion.png) | webhook receipt, signature verification, idempotent persistence, evidence extraction |
+| [Evidence intelligence engine](Architecture-diagrams/Evidence-Intelligence-Engine.png) | reconciliation, corroboration, contradiction, coverage, integrity |
+| [Risk decision & continuous verification](Architecture-diagrams/RiskDecision&ContinuousLearning.png) | decision traces, replay, invariant checks, operational monitoring |
+
 ### The AI semantic layer
 
 Off by default (`AI_ENABLED=false`) — the verifier runs a deterministic stub, no

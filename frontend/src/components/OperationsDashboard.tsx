@@ -22,9 +22,6 @@ import {
   RefreshCw,
   ShieldCheck,
   Zap,
-  TrendingUp,
-  Database,
-  BarChart3,
 } from 'lucide-react'
 import {
   fetchOperationalHealth,
@@ -66,37 +63,43 @@ function MetricCard({
   label,
   value,
   subtext,
-  icon: Icon,
   accent,
 }: {
   label: string
   value: string | number
   subtext?: string
-  icon: React.ElementType
   accent: string
 }) {
-  const accentColors: Record<string, { bg: string; text: string; glow: string }> = {
-    indigo: { bg: 'bg-indigo-500/10', text: 'text-indigo-400', glow: 'shadow-[0_0_20px_rgba(99,102,241,0.1)]' },
-    emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', glow: 'shadow-[0_0_20px_rgba(52,211,153,0.1)]' },
-    amber: { bg: 'bg-amber-500/10', text: 'text-amber-400', glow: 'shadow-[0_0_20px_rgba(251,191,36,0.1)]' },
-    rose: { bg: 'bg-rose-500/10', text: 'text-rose-400', glow: 'shadow-[0_0_20px_rgba(251,113,133,0.1)]' },
-    slate: { bg: 'bg-slate-500/10', text: 'text-slate-300', glow: '' },
+  // The icon box used to sit beside the label in a flex row. At lg:grid-cols-6
+  // that left the label roughly 90px and it wrapped mid-word. Dropping the icon
+  // gives the label the full card width, so nothing breaks.
+  const accentVar: Record<string, string> = {
+    indigo: 'var(--color-accent-primary)',
+    emerald: 'var(--color-success)',
+    amber: 'var(--color-warning)',
+    rose: 'var(--color-danger)',
+    slate: 'var(--color-text-primary)',
   }
-  const colors = accentColors[accent] || accentColors.slate
+  const color = accentVar[accent] || accentVar.slate
 
   return (
-    <div className={`metric-card group ${colors.glow}`}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">{label}</span>
-        <div className={`neo-pressed p-2 rounded-lg ${colors.bg}`}>
-          <Icon className={`w-3.5 h-3.5 ${colors.text}`} />
-        </div>
-      </div>
-      <div className={`text-2xl sm:text-3xl font-extrabold ${colors.text} mb-1 transition-all duration-300 group-hover:scale-105`}>
+    <div className="metric-card group flex flex-col justify-between gap-2 p-4">
+      <span
+        className="text-[10px] font-semibold uppercase leading-tight tracking-[0.08em]"
+        style={{ color: 'var(--color-text-tertiary)' }}
+      >
+        {label}
+      </span>
+      <div
+        className="text-xl font-extrabold leading-none tracking-tight sm:text-2xl"
+        style={{ color, fontFamily: 'var(--font-display)' }}
+      >
         {value}
       </div>
       {subtext && (
-        <span className="text-[11px] text-slate-500">{subtext}</span>
+        <span className="text-[10px] leading-tight" style={{ color: 'var(--color-text-tertiary)' }}>
+          {subtext}
+        </span>
       )}
     </div>
   )
@@ -232,12 +235,11 @@ export function OperationsDashboard() {
       </div>
 
       {/* Real-Time Metrics Grid — Neomorphism */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 items-stretch">
         <MetricCard
-          label="Webhooks Recv"
+          label="Webhooks"
           value={metrics?.ingestion.total_received ?? 0}
           subtext={`${metrics?.ingestion.total_verified ?? 0} Verified`}
-          icon={TrendingUp}
           accent="emerald"
         />
         <MetricCard
@@ -248,7 +250,6 @@ export function OperationsDashboard() {
               ? `Oldest: ${formatDuration(metrics.queue.oldest_event_age_seconds)}`
               : 'Idle'
           }
-          icon={BarChart3}
           accent="indigo"
         />
         <MetricCard
@@ -259,28 +260,24 @@ export function OperationsDashboard() {
               : '0.0s'
           }
           subtext={`Avg: ${metrics?.lag.average_lag_seconds ? formatDuration(metrics.lag.average_lag_seconds) : '0.0s'}`}
-          icon={Clock}
           accent="slate"
         />
         <MetricCard
           label="Stuck Events"
           value={metrics?.stuck_events_count ?? 0}
           subtext="> 60s in queue"
-          icon={AlertTriangle}
           accent={metrics?.stuck_events_count ? 'amber' : 'slate'}
         />
         <MetricCard
           label="Failures"
           value={metrics?.failed_events_count ?? 0}
           subtext="Observable errors"
-          icon={AlertOctagon}
           accent={metrics?.failed_events_count ? 'rose' : 'slate'}
         />
         <MetricCard
           label="Canonical Facts"
           value={metrics?.active_facts_count ?? 0}
           subtext={`${metrics?.active_payments_count ?? 0} payments`}
-          icon={Database}
           accent="emerald"
         />
       </div>

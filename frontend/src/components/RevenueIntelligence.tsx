@@ -25,6 +25,7 @@ interface RevenueMetric {
 
 interface RevenueTimeSeries {
   timestamp: string
+  label: string
   gmv: number
   success_count: number
   failure_count: number
@@ -35,6 +36,7 @@ interface RevenueData {
   evaluated_at: string
   metrics: RevenueMetric[]
   time_series: RevenueTimeSeries[]
+  series_window: string
   total_gmv: number
   avg_transaction_value: number
   success_rate: number
@@ -109,67 +111,120 @@ export function RevenueIntelligence() {
       )}
 
       {/* Revenue Time Series Chart */}
-      {data && data.time_series.length > 0 && (
-        <div className="glass-card p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="neo-pressed p-2 rounded-lg bg-indigo-500/10">
-              <BarChart3 className="w-4 h-4 text-indigo-400" />
-            </div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Revenue Trend (24h)</h3>
-          </div>
+      {data && data.time_series.length > 0 && (() => {
+        const series = data.time_series
+        const window = data.series_window || 'Last 24 hours'
+        const maxGmv = Math.max(...series.map(p => p.gmv))
+        const hasActivity = series.some(p => p.gmv > 0 || p.success_count > 0 || p.failure_count > 0)
+        // Only label a tick every Nth bucket so the axis never collides with itself.
+        const step = Math.max(1, Math.ceil(series.length / 8))
+        const tick = (p: RevenueTimeSeries) =>
+          p.label || `${new Date(p.timestamp).getHours()}h`
 
-          {/* GMV Bar Chart */}
-          <div className="mb-6">
-            <div className="text-[10px] text-slate-500 mb-2">GMV by Hour (₹)</div>
-            <div className="flex items-end gap-1 h-40">
-              {data.time_series.map((point, i) => {
-                const maxGmv = Math.max(...data.time_series.map(p => p.gmv), 1)
-                const height = (point.gmv / maxGmv) * 100
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-                    <div className="absolute -top-8 hidden group-hover:block bg-slate-800 text-[10px] text-white px-2 py-1 rounded z-10 whitespace-nowrap">
-                      ₹{point.gmv.toFixed(2)}
-                    </div>
-                    <div
-                      className="w-full bg-emerald-500/40 rounded-t hover:bg-emerald-500/60 transition-colors"
-                      style={{ height: `${Math.max(2, height)}%` }}
-                    />
-                    {i % 6 === 0 && (
-                      <span className="text-[8px] text-slate-600">
-                        {new Date(point.timestamp).getHours()}h
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Success Rate Line */}
-          <div>
-            <div className="text-[10px] text-slate-500 mb-2">Success Rate by Hour (%)</div>
-            <div className="flex items-end gap-1 h-24">
-              {data.time_series.map((point, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full rounded-t transition-all duration-500"
-                    style={{
-                      height: `${Math.max(2, point.success_rate)}%`,
-                      backgroundColor: point.success_rate > 90 ? 'rgba(52,211,153,0.4)' :
-                        point.success_rate > 70 ? 'rgba(251,191,36,0.4)' : 'rgba(251,113,133,0.4)',
-                    }}
-                  />
-                  {i % 6 === 0 && (
-                    <span className="text-[8px] text-slate-600">
-                      {point.success_rate.toFixed(0)}%
-                    </span>
-                  )}
+        return (
+          <div className="glass-card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="neo-pressed p-2 rounded-lg" style={{ background: 'var(--color-accent-glow)' }}>
+                  <BarChart3 className="w-4 h-4" style={{ color: 'var(--color-text-accent)' }} />
                 </div>
-              ))}
+                <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>
+                  Revenue Trend
+                </h3>
+              </div>
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                    style={{ color: 'var(--color-text-tertiary)', border: '1px solid var(--color-border)' }}>
+                {window}
+              </span>
             </div>
+
+            {!hasActivity ? (
+              <div className="neo-inset rounded-xl px-6 py-10 text-center">
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+                  No payment activity in this window
+                </p>
+                <p className="mt-1.5 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+                  Ingest a Razorpay Test Mode webhook and the trend will populate.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* GMV */}
+                <div>
+                  <div className="mb-2 text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>
+                    GMV (₹)
+                  </div>
+                  <div className="flex h-40 items-end gap-1">
+                    {series.map((point, i) => {
+                      const height = maxGmv > 0 ? (point.gmv / maxGmv) * 100 : 0
+                      return (
+                        <div key={i} className="group relative flex flex-1 flex-col items-center gap-1">
+                          <div className="absolute -top-8 z-10 hidden whitespace-nowrap rounded px-2 py-1 text-[10px] group-hover:block"
+                               style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-primary)' }}>
+                            {tick(point)} · ₹{point.gmv.toFixed(2)}
+                          </div>
+                          <div className="w-full flex-1 flex items-end">
+                            <div
+                              className="w-full rounded-t transition-colors"
+                              style={{
+                                height: `${point.gmv > 0 ? Math.max(4, height) : 2}%`,
+                                background: point.gmv > 0
+                                  ? 'color-mix(in srgb, var(--color-success) 55%, transparent)'
+                                  : 'var(--color-border)',
+                              }}
+                            />
+                          </div>
+                          <span className="h-3 text-[8px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                            {i % step === 0 ? tick(point) : ''}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Success rate */}
+                <div>
+                  <div className="mb-2 text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>
+                    Success rate (%)
+                  </div>
+                  <div className="flex h-40 items-end gap-1">
+                    {series.map((point, i) => {
+                      const active = point.success_count + point.failure_count > 0
+                      return (
+                        <div key={i} className="group relative flex flex-1 flex-col items-center gap-1">
+                          <div className="absolute -top-8 z-10 hidden whitespace-nowrap rounded px-2 py-1 text-[10px] group-hover:block"
+                               style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-primary)' }}>
+                            {tick(point)} · {active ? `${point.success_rate.toFixed(0)}%` : 'no activity'}
+                          </div>
+                          <div className="w-full flex-1 flex items-end">
+                            <div
+                              className="w-full rounded-t transition-all duration-500"
+                              style={{
+                                height: active ? `${Math.max(4, point.success_rate)}%` : '2%',
+                                background: !active
+                                  ? 'var(--color-border)'
+                                  : point.success_rate > 90
+                                  ? 'color-mix(in srgb, var(--color-success) 55%, transparent)'
+                                  : point.success_rate > 70
+                                  ? 'color-mix(in srgb, var(--color-warning) 55%, transparent)'
+                                  : 'color-mix(in srgb, var(--color-danger) 55%, transparent)',
+                              }}
+                            />
+                          </div>
+                          <span className="h-3 text-[8px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                            {i % step === 0 ? tick(point) : ''}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {loading && (
         <div className="glass-card p-8 flex items-center justify-center gap-4">
