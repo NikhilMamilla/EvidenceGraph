@@ -857,8 +857,8 @@ export function PaymentInspector() {
 
           {/* ══ OVERVIEW ═════════════════════════════════════════════ */}
           {detailTab === 'overview' && (
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="glass-card p-5 lg:col-span-2">
+            <div className="panel-masonry">
+              <div className="glass-card p-5 panel-full">
               <div className="flex justify-between items-center pb-4 border-b border-white/5">
                 <div>
                   <h3 className="text-2xl font-bold text-white mb-1">{formatCurrency(selectedPayment.amount_minor, selectedPayment.currency)}</h3>
@@ -992,7 +992,7 @@ export function PaymentInspector() {
 
 
               {selectedConsistency !== null && (
-                <div className="glass-card p-5 lg:col-span-2">
+                <div className="glass-card p-5">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <h3 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em]"
                         style={{ color: 'var(--color-text-primary)' }}>
@@ -1152,9 +1152,9 @@ export function PaymentInspector() {
 
           {/* ══ EVIDENCE ═════════════════════════════════════════════ */}
           {detailTab === 'evidence' && (
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="panel-masonry">
               {/* Phase 13 — Reconciled Evidence Facts Layer */}
-              <div className="glass-card p-5 lg:col-span-2">
+              <div className="glass-card p-5">
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1350,7 +1350,7 @@ export function PaymentInspector() {
 
 
               {selectedStructure && selectedStructure.snapshot && (
-                <div className="glass-card p-5 lg:col-span-2">
+                <div className="glass-card p-5">
                   <div className="flex justify-between items-center mb-4">
                     <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
@@ -1464,7 +1464,7 @@ export function PaymentInspector() {
 
             {/* ── Phase 15 — Evidence Completeness & Coverage Analysis ────── */}
             {selectedCoverage && (
-              <div className="glass-card p-5 lg:col-span-2">
+              <div className="glass-card p-5 panel-full">
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1608,7 +1608,7 @@ export function PaymentInspector() {
 
             {/* ── Phase 14 — End-to-End Evidence Lineage & Causal Chain ───── */}
             {selectedLineage && (
-              <div className="glass-card p-5 lg:col-span-2">
+              <div className="glass-card p-5 panel-full">
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1742,7 +1742,7 @@ export function PaymentInspector() {
 
           {/* ══ INTEGRITY & REPLAY ═══════════════════════════════════ */}
           {detailTab === 'integrity' && (
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="panel-masonry">
             {/* ── Phase 9 — Evidence Integrity Panel ─────────────────────── */}
             {selectedIntegrity && (
               <div className="glass-card p-5">
@@ -1980,7 +1980,7 @@ export function PaymentInspector() {
             )}
 
               {/* Evidence Evolution — Phase 11 */}
-              <div className="glass-card p-5 lg:col-span-2">
+              <div className="glass-card p-5">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
                     <Clock className="w-4 h-4 text-purple-400" /> Evidence Evolution
@@ -2116,7 +2116,7 @@ export function PaymentInspector() {
 
       {/* Phase 18 — Decision Replay & Differential Analysis */}
       {selectedPayment && (
-        <div className="col-span-1 lg:col-span-2 glass-card overflow-hidden animate-slide-up">
+        <div className="panel-full glass-card overflow-hidden animate-slide-up">
           <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
             <h3
               className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em]"

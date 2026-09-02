@@ -509,6 +509,31 @@ body {
     background: linear-gradient(90deg, transparent, var(--color-border-hover), transparent);
   }
 
+  /* Panel masonry — used by the Payments sub-tabs.
+     A CSS grid forces every card in a row to the height of the tallest, so a
+     short panel next to a tall one becomes a big empty box. Multi-column lets
+     each card keep its natural height and lets the browser balance the two
+     columns, so neither side ends up mostly whitespace. Panels that carry wide
+     tables opt out with .panel-full and span the full width. */
+  .panel-masonry {
+    column-gap: 1.5rem;
+  }
+
+  .panel-masonry > * {
+    break-inside: avoid;
+    margin-bottom: 1.5rem;
+  }
+
+  .panel-full {
+    column-span: all;
+  }
+
+  @media (min-width: 1024px) {
+    .panel-masonry {
+      column-count: 2;
+    }
+  }
+
   /* Section intro — "what it is / how it works / why it matters".
      One row of three columns separated by a hairline rule, with enough
      breathing room that the three reads as three, not as one block. */
