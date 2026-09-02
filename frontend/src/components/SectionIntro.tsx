@@ -100,28 +100,39 @@ export function SectionIntro({ id, title, tagline, what, how, why, kind = 'platf
 
       {!collapsed && (
         <div
-          className="grid gap-4 px-5 pb-5 pt-1 sm:grid-cols-3"
+          className="intro-grid px-6 pb-7 pt-6 sm:px-7"
           style={{ borderTop: '1px solid var(--color-border)' }}
         >
-          <IntroBlock label="What it is" body={what} />
-          <IntroBlock label="How it works" body={how} />
-          <IntroBlock label="Why it matters" body={why} />
+          <IntroBlock index="01" label="What it is" body={what} />
+          <IntroBlock index="02" label="How it works" body={how} />
+          <IntroBlock index="03" label="Why it matters" body={why} />
         </div>
       )}
     </div>
   )
 }
 
-function IntroBlock({ label, body }: { label: string; body: string }) {
+function IntroBlock({ index, label, body }: { index: string; label: string; body: string }) {
   return (
-    <div>
-      <div
-        className="mb-1.5 mt-3 text-[10px] font-bold uppercase tracking-[0.14em] sm:mt-0"
-        style={{ color: 'var(--color-text-accent)' }}
-      >
-        {label}
+    <div className="intro-col">
+      <div className="mb-2.5 flex items-baseline gap-2">
+        <span
+          className="text-[10px] font-bold tabular-nums"
+          style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}
+        >
+          {index}
+        </span>
+        <span
+          className="text-[10px] font-bold uppercase tracking-[0.14em]"
+          style={{ color: 'var(--color-text-accent)' }}
+        >
+          {label}
+        </span>
       </div>
-      <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+      <p
+        className="text-xs leading-[1.7]"
+        style={{ color: 'var(--color-text-secondary)', maxWidth: '46ch' }}
+      >
         {body}
       </p>
     </div>

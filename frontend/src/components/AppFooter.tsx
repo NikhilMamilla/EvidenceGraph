@@ -165,13 +165,14 @@ function FooterLink({
   icon: React.ElementType
   children: React.ReactNode
 }) {
-  const external = href.startsWith('http')
+  // Everything here leaves the SPA — the repo, Swagger UI, the raw probe —
+  // so all of them open in their own tab rather than replacing the app.
   return (
     <li>
       <a
         href={href}
-        target={external ? '_blank' : undefined}
-        rel={external ? 'noreferrer noopener' : undefined}
+        target="_blank"
+        rel="noreferrer noopener"
         className="group inline-flex items-center gap-2 text-xs transition-colors"
         style={{ color: 'var(--color-text-secondary)' }}
       >

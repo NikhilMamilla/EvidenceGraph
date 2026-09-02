@@ -857,7 +857,7 @@ export function PaymentInspector() {
 
           {/* ══ OVERVIEW ═════════════════════════════════════════════ */}
           {detailTab === 'overview' && (
-            <div className="grid items-start gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2">
               <div className="glass-card p-5 lg:col-span-2">
               <div className="flex justify-between items-center pb-4 border-b border-white/5">
                 <div>
@@ -1152,7 +1152,7 @@ export function PaymentInspector() {
 
           {/* ══ EVIDENCE ═════════════════════════════════════════════ */}
           {detailTab === 'evidence' && (
-            <div className="grid items-start gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2">
               {/* Phase 13 — Reconciled Evidence Facts Layer */}
               <div className="glass-card p-5 lg:col-span-2">
                 <div className="flex justify-between items-center mb-4">
@@ -1294,6 +1294,60 @@ export function PaymentInspector() {
                 </div>
               )}
 
+              {selectedGraph && selectedGraph.edge_count > 0 && (
+                <div className="glass-card p-5">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                      <Link2 className="w-4 h-4 text-indigo-400" /> Evidence Relationships
+                    </h4>
+                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
+                      {selectedGraph.edge_count} edges
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {/* Group edges by type for easier reading */}
+                    {Array.from(new Set(selectedGraph.edges.map(e => e.relationship_type))).sort().map(edgeType => {
+                      const edgesOfType = selectedGraph.edges.filter(e => e.relationship_type === edgeType)
+                      
+                      // Style badges differently based on type
+                      let badgeStyle = "bg-slate-700/50 text-slate-300 border-slate-600"
+                      if (edgeType === 'INDEPENDENCE_CANDIDATE') badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                      if (edgeType === 'SAME_SOURCE') badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                      if (edgeType === 'DERIVED_FROM') badgeStyle = "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      
+                      return (
+                        <div key={edgeType} className="mb-4">
+                          <div className="mb-2">
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-mono border uppercase tracking-wider ${badgeStyle}`}>
+                              {edgeType}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {edgesOfType.map(edge => {
+                              const sourceNode = selectedGraph.nodes.find(n => n.evidence_id === edge.source_evidence_id)
+                              const targetNode = selectedGraph.nodes.find(n => n.evidence_id === edge.target_evidence_id)
+                              
+                              return (
+                                <div key={edge.edge_id} className="text-xs flex items-center gap-2 bg-slate-900/40 p-2 rounded border border-slate-800">
+                                  <div className="truncate flex-1 font-mono text-slate-400">
+                                    [#{sourceNode?.evidence_id}] {sourceNode?.evidence_type}
+                                  </div>
+                                  <div className="text-slate-600">→</div>
+                                  <div className="truncate flex-1 font-mono text-slate-400">
+                                    [#{targetNode?.evidence_id}] {targetNode?.evidence_type}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
 
               {selectedStructure && selectedStructure.snapshot && (
                 <div className="glass-card p-5 lg:col-span-2">
@@ -1406,59 +1460,6 @@ export function PaymentInspector() {
               )}
 
 
-              {selectedGraph && selectedGraph.edge_count > 0 && (
-                <div className="glass-card p-5">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                      <Link2 className="w-4 h-4 text-indigo-400" /> Evidence Relationships
-                    </h4>
-                    <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-full border border-slate-700">
-                      {selectedGraph.edge_count} edges
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {/* Group edges by type for easier reading */}
-                    {Array.from(new Set(selectedGraph.edges.map(e => e.relationship_type))).sort().map(edgeType => {
-                      const edgesOfType = selectedGraph.edges.filter(e => e.relationship_type === edgeType)
-                      
-                      // Style badges differently based on type
-                      let badgeStyle = "bg-slate-700/50 text-slate-300 border-slate-600"
-                      if (edgeType === 'INDEPENDENCE_CANDIDATE') badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                      if (edgeType === 'SAME_SOURCE') badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                      if (edgeType === 'DERIVED_FROM') badgeStyle = "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      
-                      return (
-                        <div key={edgeType} className="mb-4">
-                          <div className="mb-2">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-mono border uppercase tracking-wider ${badgeStyle}`}>
-                              {edgeType}
-                            </span>
-                          </div>
-                          <div className="space-y-1">
-                            {edgesOfType.map(edge => {
-                              const sourceNode = selectedGraph.nodes.find(n => n.evidence_id === edge.source_evidence_id)
-                              const targetNode = selectedGraph.nodes.find(n => n.evidence_id === edge.target_evidence_id)
-                              
-                              return (
-                                <div key={edge.edge_id} className="text-xs flex items-center gap-2 bg-slate-900/40 p-2 rounded border border-slate-800">
-                                  <div className="truncate flex-1 font-mono text-slate-400">
-                                    [#{sourceNode?.evidence_id}] {sourceNode?.evidence_type}
-                                  </div>
-                                  <div className="text-slate-600">→</div>
-                                  <div className="truncate flex-1 font-mono text-slate-400">
-                                    [#{targetNode?.evidence_id}] {targetNode?.evidence_type}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
 
 
             {/* ── Phase 15 — Evidence Completeness & Coverage Analysis ────── */}
@@ -1607,7 +1608,7 @@ export function PaymentInspector() {
 
             {/* ── Phase 14 — End-to-End Evidence Lineage & Causal Chain ───── */}
             {selectedLineage && (
-              <div className="glass-card p-5">
+              <div className="glass-card p-5 lg:col-span-2">
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1741,10 +1742,10 @@ export function PaymentInspector() {
 
           {/* ══ INTEGRITY & REPLAY ═══════════════════════════════════ */}
           {detailTab === 'integrity' && (
-            <div className="grid items-start gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2">
             {/* ── Phase 9 — Evidence Integrity Panel ─────────────────────── */}
             {selectedIntegrity && (
-              <div className="glass-card p-5 lg:col-span-2">
+              <div className="glass-card p-5">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Evidence Integrity</h4>
                   <span className="text-[10px] bg-violet-500/10 text-violet-400 px-2 py-1 rounded-full border border-violet-500/20 font-mono">
@@ -1982,7 +1983,7 @@ export function PaymentInspector() {
               <div className="glass-card p-5 lg:col-span-2">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <span className="text-purple-400">⏱️</span> Evidence Evolution
+                    <Clock className="w-4 h-4 text-purple-400" /> Evidence Evolution
                   </h4>                    <button
                       onClick={() => recomputeEvolution(selectedPayment.razorpay_payment_id)}
                       disabled={recomputeLoading}

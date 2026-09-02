@@ -509,6 +509,34 @@ body {
     background: linear-gradient(90deg, transparent, var(--color-border-hover), transparent);
   }
 
+  /* Section intro — "what it is / how it works / why it matters".
+     One row of three columns separated by a hairline rule, with enough
+     breathing room that the three reads as three, not as one block. */
+  .intro-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+
+  @media (min-width: 768px) {
+    .intro-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0;
+    }
+    .intro-col {
+      padding-inline: 2rem;
+    }
+    .intro-col:first-child {
+      padding-inline-start: 0;
+    }
+    .intro-col:last-child {
+      padding-inline-end: 0;
+    }
+    .intro-col + .intro-col {
+      border-inline-start: 1px solid var(--color-border);
+    }
+  }
+
   /* ═══════════════════════════════════════════════════════════════
      ANIMATIONS
      ═══════════════════════════════════════════════════════════════ */
