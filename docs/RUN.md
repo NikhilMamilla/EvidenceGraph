@@ -29,7 +29,7 @@ That's it. It will:
 
 1. start Redis
 2. build + start the backend, which waits for the database, runs
-   `alembic upgrade head` and (first boot) seeds the 20 golden defense cases,
+   `alembic upgrade head` and (first boot) seeds the 50 golden defense cases and freezes the dataset,
    then starts FastAPI
 3. build the frontend and serve it through nginx, which proxies `/api/*` to the
    backend
@@ -90,9 +90,16 @@ curl http://localhost:8000/api/v1/health/ready      # DB + Redis reachable
 # --- seed the golden defense dataset (skip if SEED_GOLDEN_CASES was true) ---
 curl -X POST http://localhost:8000/api/v1/defense/evaluation/seed
 
+# --- inter-annotator agreement (Cohen's kappa between the two label passes) -
+curl http://localhost:8000/api/v1/defense/evaluation/agreement
+#  -> cohens_kappa ~0.87, "almost perfect", 5 disagreements
+
 # --- run the deterministic baseline evaluation -----------------------------
 curl -X POST http://localhost:8000/api/v1/defense/evaluation/run
-#  -> accuracy ~0.90, macro_f1 ~0.885, 0 false-supported (REF_EVAL_V2)
+#  -> accuracy ~0.92, macro_f1 ~0.92, 0 false-supported (REF_EVAL_V2, 50 cases)
+
+# --- freeze the dataset (idempotent; the Docker image does this on boot) ---
+curl -X POST http://localhost:8000/api/v1/defense/evaluation/freeze
 
 # --- verify a single defense statement (AI layer + deterministic authority) -
 curl -X POST http://localhost:8000/api/v1/defense/verify \
@@ -139,7 +146,7 @@ Then `POST /api/v1/defense/ai/evaluate` again — Track C now runs the real mode
 ## 4. Tests
 
 ```bash
-# backend  (500 tests — platform + investigation + defense verifier)
+# backend  (platform + investigation + defense verifier + security middleware)
 cd backend && .venv\Scripts\Activate.ps1 && python -m pytest -q
 
 # just the defense verifier (golden baseline + metamorphic + adversarial + AI policy)
@@ -165,3 +172,4 @@ In Docker: `docker compose run --rm backend python -m pytest -q`.
 | `/api/v1/defense/...` returns 404 in the browser but works on :8000 | you're on an old frontend image — `docker compose build frontend` |
 | "Live Stream" tab shows `Reconnecting…` and never events | expected when no webhooks have been ingested — the header shows `Live · synced Ns ago` from the heartbeat, so the stream is healthy; it just has nothing to show |
 | port 5173 / 8000 already in use | set `FRONTEND_PORT` / `BACKEND_PORT` in `.env` |
+| `429 Too Many Requests` from a script hammering `/defense/*/run` or `/webhooks/*` | the in-process rate limiter (default 120/min per IP). Raise or disable with `RATE_LIMIT_PER_MINUTE` in `.env` (`0` disables). |

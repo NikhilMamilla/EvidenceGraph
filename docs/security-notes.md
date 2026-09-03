@@ -10,13 +10,40 @@ Track 02 is **defense-only** — nothing in this system is offense-capable.
 | Item | State | Action |
 |---|---|---|
 | `.env` | Gitignored; never committed. Verified clean before the first commit. | Keep it out of git. `git status` should never list it. |
-| Supabase DB password | Currently **reused** as `RAZORPAY_WEBHOOK_SECRET` (same string). | **Rotate both** to independent high-entropy values before the repo is made public or shared. Supabase → Project Settings → Database → Reset password. Razorpay → Dashboard → Webhooks → regenerate secret. |
+| Supabase DB password | Independent value. **No longer reused** as the webhook secret. The old shared string still exists in git history from earlier commits. | Rotate the Supabase password (Project Settings → Database → Reset password) so the history copy is dead. |
+| `RAZORPAY_WEBHOOK_SECRET` | Now a distinct `whsec_...` value in `.env`, generated with `secrets.token_urlsafe(32)`. | Set the **same value** in the Razorpay dashboard (Settings → Webhooks) so signature checks pass. |
 | `RAZORPAY_KEY_SECRET` | Test-mode key in `.env`. | Fine for the demo. Never commit a live-mode key. |
-| `ADMIN_API_KEY` | Empty. Restricted trace / replay / chain-verify endpoints **fail closed (503)** when unset. | Set a random 32+ char value before demoing the cryptographic-trace endpoints. |
+| `ADMIN_API_KEY` | Set in `.env` (`secrets.token_urlsafe(36)`). Restricted trace / replay / chain-verify endpoints require it via `X-API-Key`; they **fail closed (503)** if it is ever unset. | Keep it in `.env` only. Rotate if shared. |
 | `ANTHROPIC_API_KEY` / `AI_API_KEY` | Unset. The verifier runs the deterministic stub until a key is present. | Add to `.env` only; the code reads it from the environment and never logs it. |
 
 Rotate anything that has been pasted into a chat, screen-shared, or committed
 in history — treat it as burned.
+
+---
+
+## Transport & middleware hardening
+
+Wired in `app.main.create_app()` (order: security headers outermost, then rate
+limiter, then correlation ID):
+
+- **Security headers on every API response** (`SecurityHeadersMiddleware`):
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`,
+  `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy:
+  same-site`, and `Cache-Control: no-store` on `/api/` paths. nginx sets its own
+  headers for the SPA; this covers direct access to `:8000`.
+- **In-process rate limiting** (`RateLimitMiddleware`, `RATE_LIMIT_PER_MINUTE`,
+  default 120/min per client IP): fixed-window limiter on the mutating /
+  expensive routes only — `/webhooks/*`, `/defense/evaluation/{run,seed,freeze}`,
+  `/defense/verify`, `/defense/ai/evaluate`. `GET` and health probes are never
+  limited. Over the limit → `429` with `Retry-After`. Set to `0` to disable
+  (the test suite does). A real deployment puts this at the edge.
+- **Tighter CORS.** `allow_headers` is an explicit list
+  (`Content-Type, Authorization, X-API-Key, X-Request-ID`), not `*`.
+- **Docs surface.** `/docs`, `/redoc` and `/openapi.json` are served only when
+  `APP_ENV != production`.
+
+Covered by `tests/test_security_middleware.py`.
 
 ---
 
@@ -74,16 +101,19 @@ untrusted component:
 
 ## Before making the repo public
 
-1. Rotate the reused DB / webhook secret.
-2. `git log -p -- .env` → confirm it never appears in history (it does not in
-   the current branch; check `main` if you merge).
-3. Scan history for the reused string. Do **not** paste the secret into this
-   file — read it from the untracked `.env` so the check never becomes its own
-   match:
+1. **Rotate the Supabase DB password.** The old value was reused as the webhook
+   secret in earlier commits and still lives in git history — rotating is the
+   only way to kill that copy. Supabase → Project Settings → Database → Reset
+   password, then update `DATABASE_URL` in `.env`.
+2. **Webhook secret** is already a distinct `whsec_...` value (done). Set the
+   same value in the Razorpay dashboard so signature verification keeps working.
+3. **`ADMIN_API_KEY`** is already set in `.env` (done). Confirm it is present.
+4. `git log -p -- .env` → confirm `.env` itself never appears in history.
+5. Scan history for the old shared string. Read it from the untracked `.env`
+   backup or your password manager — do not paste it here:
 
    ```bash
-   SECRET=$(grep -oP '(?<=^RAZORPAY_WEBHOOK_SECRET=).*' .env)
-   git grep -I -- "$SECRET" $(git rev-list --all)   # must return nothing
+   git grep -I -- "<old-password>" $(git rev-list --all)   # any hit → rotate
    ```
-4. Set `ADMIN_API_KEY`.
-5. Confirm `docs/`, `README.md`, and screenshots contain no real key material.
+6. Confirm `docs/`, `README.md`, and screenshots contain no real key material
+   (`git grep -nE 'rzp_live_|sk-ant-[A-Za-z0-9]|BEGIN (RSA|PRIVATE)'`).

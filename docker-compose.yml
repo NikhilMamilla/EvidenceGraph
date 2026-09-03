@@ -46,9 +46,11 @@ services:
     environment:
       # Redis resolves to the compose service name inside the network
       REDIS_URL: redis://redis:6379/0
-      # Seed the 20 golden delivery-dispute cases on first boot (idempotent).
+      # Seed the 50 golden delivery-dispute cases on first boot (idempotent).
       # Set SEED_GOLDEN_CASES=false in .env to skip.
       SEED_GOLDEN_CASES: ${SEED_GOLDEN_CASES:-true}
+      # Boot with an immutable held-out split — the metrics are measured against it.
+      SEED_FREEZE_DATASET: ${SEED_FREEZE_DATASET:-true}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:

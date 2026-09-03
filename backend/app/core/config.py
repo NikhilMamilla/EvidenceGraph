@@ -97,6 +97,12 @@ class Settings(BaseSettings):
     admin_api_key: str = ""
 
     # ------------------------------------------------------------------
+    # Rate limiting — in-process token bucket on write / expensive routes.
+    # 0 disables it (tests). Applies per client IP.
+    # ------------------------------------------------------------------
+    rate_limit_per_minute: int = 120
+
+    # ------------------------------------------------------------------
     # Derived helpers
     # ------------------------------------------------------------------
 

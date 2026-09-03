@@ -21,7 +21,11 @@ from app.models.defense_evidence_link import DefenseEvidenceLink
 from app.models.evaluation_label import EvaluationLabel
 from app.models.evaluation_dataset import EvaluationDataset
 from app.models.evaluation_run import EvaluationRun
-from app.services.golden_test_cases import seed_golden_cases
+from app.services.golden_test_cases import (
+    compute_inter_annotator_agreement,
+    freeze_dataset,
+    seed_golden_cases,
+)
 from app.services.defense_evaluation_engine import DefenseEvaluationEngine
 
 router = APIRouter(prefix="/defense", tags=["Phase 21 — Defense Evaluation"])
@@ -53,6 +57,10 @@ def list_datasets(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
             "split_counts": d.split_counts,
             "dataset_fingerprint": d.dataset_fingerprint,
             "methodology_version": d.methodology_version,
+            "cohens_kappa": (
+                (compute_inter_annotator_agreement().get("cohens_kappa"))
+                if d.dataset_version == EG_DEFENSE_V1_0 else None
+            ),
             "created_at": d.created_at.isoformat() if d.created_at else None,
         }
         for d in datasets
@@ -85,6 +93,10 @@ def get_dataset(dataset_version: str, db: Session = Depends(get_db)) -> dict[str
         "split_counts": dataset.split_counts,
         "dataset_fingerprint": dataset.dataset_fingerprint,
         "methodology_version": dataset.methodology_version,
+        "inter_annotator_agreement": (
+            compute_inter_annotator_agreement()
+            if dataset_version == EG_DEFENSE_V1_0 else None
+        ),
         "cases": [
             {
                 "case_id": c.case_id,
@@ -188,8 +200,26 @@ def seed_dataset(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Seed golden test cases into the specified dataset version."""
-    result = seed_golden_cases(db)
-    return result
+    return seed_golden_cases(db)
+
+
+@router.post("/evaluation/freeze")
+def freeze_evaluation_dataset(
+    request: SeedRequest | None = None,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Freeze the dataset: the case set, labels and fingerprint become the
+    immutable held-out split the reported metrics were measured against.
+    Idempotent — re-seeding a frozen dataset is a no-op.
+    """
+    version = request.dataset_version if request else EG_DEFENSE_V1_0
+    return freeze_dataset(db, version)
+
+
+@router.get("/evaluation/agreement")
+def inter_annotator_agreement() -> dict[str, Any]:
+    """Cohen's kappa between the primary and second-pass (adjudication) labels."""
+    return compute_inter_annotator_agreement()
 
 
 @router.post("/evaluation/run")

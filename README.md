@@ -19,9 +19,9 @@ deterministically and with a full audit trail:
 | **Output** | One of `SUPPORTED` · `INSUFFICIENT_EVIDENCE` · `CONTRADICTED` · `UNKNOWN`, plus the evidence IDs and a SHA-256 decision trace |
 | **Core engine** | Deterministic. No model in the verdict path. Same inputs → same verdict, replayable at any point in time |
 | **AI layer** | Optional. Extracts claims from free text and proposes relevant evidence. **Advisory only** — it can never reach `SUPPORTED` or override a contradiction |
-| **Measured** | 90% accuracy, 0.885 macro-F1, **0 false-`SUPPORTED`**, 100% contradiction recall on the 20-case frozen golden set (majority-class baseline: 33%) |
+| **Measured** | 92% accuracy, 0.92 macro-F1, **0 false-`SUPPORTED`**, 100% contradiction recall on the **50-case frozen golden set** (Cohen's κ 0.87 between label passes; majority-class baseline 32%) |
 | **Run it** | `docker compose up --build` → one command, full stack |
-| **Tests** | 500 backend (pytest), all green |
+| **Tests** | 525 backend (pytest), all green |
 
 ---
 
@@ -69,26 +69,35 @@ overturn a contradiction, a temporal exclusion, or a provenance failure.
 
 ## Measured results
 
-Deterministic reference evaluator (`REF_EVAL_V2`) on the **20-case frozen golden
-set** — 4 `SUPPORTED` / 7 `INSUFFICIENT_EVIDENCE` / 5 `CONTRADICTED` / 4 `UNKNOWN`,
-human-labeled, held out from all development:
+Deterministic reference evaluator (`REF_EVAL_V2`) on the **50-case frozen golden
+set** — 12 `SUPPORTED` / 14 `INSUFFICIENT_EVIDENCE` / 12 `CONTRADICTED` / 12 `UNKNOWN`,
+held out from all development, immutable once frozen:
 
-| Metric | REF_EVAL_V1 | **REF_EVAL_V2** |
+| Metric | 20-case set | **50-case set** |
 |---|---|---|
-| Accuracy | 0.80 | **0.90** |
-| Macro-F1 | 0.747 | **0.885** |
-| False-`SUPPORTED` (the expensive error) | 4 | **0** |
+| Accuracy | 0.90 | **0.92** |
+| Macro-F1 | 0.885 | **0.92** |
+| False-`SUPPORTED` (the expensive error) | 0 | **0** |
 | Contradiction recall | 1.00 | **1.00** |
-| Majority-class baseline (B1) | 0.33 | 0.33 |
+| Majority-class baseline (B1) | 0.33 | 0.32 |
 
-The 2 residual errors (`GOLDEN_010`, `GOLDEN_020`) score `INSUFFICIENT_EVIDENCE`
-where the human label is `UNKNOWN` — both on the safe side of the matrix, neither
-a false `SUPPORTED`.
+**Label reliability.** Each case carries two independent label passes — the
+primary verdict and a second-pass adjudication that re-derives it from the
+evidence alone. Cohen's κ between the two is **0.87** ("almost perfect",
+Landis & Koch), with 5 disagreements, all on the `INSUFFICIENT` ↔ `UNKNOWN`
+boundary where the four-class taxonomy is genuinely fuzzy. This is
+single-annotator + self-adjudication, documented as such — not inter-human
+agreement.
+
+The 4 residual errors (`GOLDEN_010/020/036/037`) score `INSUFFICIENT_EVIDENCE`
+where the label is `UNKNOWN` — a provenance-invalid or near-miss entity match
+that a human reads as "can't tell". All on the safe side; none a false
+`SUPPORTED`.
 
 These floors are asserted as hard test failures in
 [`backend/tests/test_defense_verifier.py`](backend/tests/test_defense_verifier.py)
-(golden baseline, 10 metamorphic properties, 8 adversarial attacks, AI-override
-policy). Small set, wide confidence intervals — see [Limitations](#limitations).
+(golden baseline, κ ≥ 0.75, freeze protocol, 10 metamorphic properties,
+8 adversarial attacks, AI-override policy). See [Limitations](#limitations).
 
 ---
 
@@ -189,7 +198,7 @@ cp .env.example .env          # then set DATABASE_URL to your Supabase URI
 docker compose up --build
 ```
 
-On first boot the backend runs `alembic upgrade head` and seeds the 20 golden
+On first boot the backend runs `alembic upgrade head` and seeds the 50 golden
 cases; nginx serves the SPA and proxies `/api/*` to the backend.
 
 | Service | URL |
@@ -243,7 +252,7 @@ holds placeholders only. Rotate any secret that has been shared or reused. See
 ## Testing
 
 ```bash
-# backend — 500 tests
+# backend — 525 tests
 cd backend && .venv\Scripts\Activate.ps1 && python -m pytest -q
 
 # frontend — build + smoke tests
@@ -261,7 +270,7 @@ provider selection.
 ## API tour
 
 ```bash
-# 1. seed the 20 golden delivery-dispute cases
+# 1. seed the 50 golden delivery-dispute cases
 curl -X POST http://localhost:8000/api/v1/defense/evaluation/seed
 
 # 2. run the deterministic baseline evaluation (confusion matrix, macro-F1, per-class P/R)
@@ -296,11 +305,11 @@ demo script: [`docs/demo-runbook.md`](docs/demo-runbook.md).
 
 | Layer | State |
 |---|---|
-| **Evidence platform** — immutable webhook ingestion → canonical entities → evidence observations & provenance → relationship graph → corroboration & independence → contradiction & temporal consistency → coverage → reliability & uncertainty → integrity computation → SHA-256 decision traces → point-in-time replay → operational monitoring | **Built.** ~31.5k LOC, 12 migrations, 500 tests |
+| **Evidence platform** — immutable webhook ingestion → canonical entities → evidence observations & provenance → relationship graph → corroboration & independence → contradiction & temporal consistency → coverage → reliability & uncertainty → integrity computation → SHA-256 decision traces → point-in-time replay → operational monitoring | **Built.** ~31.5k LOC, 12 migrations, 525 tests |
 | **Graph investigation engine** (Phase 12) — BFS traversal over persisted relations: payment-centered graph, shortest path, evidence provenance chains, claim-support breakdown, dependency chains, conflict paths, cross-entity search. Sensitive fields (raw payloads, PII) are whitelisted out | **Built.** 22 tests |
-| **Defense verification foundation** (Phase 21) — models, deterministic reference evaluator, 20 golden cases, evaluation harness (confusion matrix, macro-F1, per-class P/R, frozen-split protocol) | **Built.** |
+| **Defense verification foundation** (Phase 21) — models, deterministic reference evaluator, 50 golden cases with two label passes (Cohen's κ 0.87), a freeze protocol, evaluation harness (confusion matrix, macro-F1, per-class P/R) | **Built.** |
 | **AI semantic layer** (Phases 22–23) — claim extraction + evidence matching, provider abstraction, deterministic override policy, prompt-injection isolation, output validation | **Built.** Providers: `test` · `anthropic` · `mistral` · `openai` |
-| **REF_EVAL_V2 + safety gate** (Phase 24) — provenance-before-coverage ordering, entity-value match, delivery-status semantics, timezone coercion, three-way evaluation with false-`SUPPORTED` / contradiction-miss metrics | **Built.** 90% acc / 0.885 F1 / 0 false-`SUPPORTED` |
+| **REF_EVAL_V2 + safety gate** (Phase 24) — provenance-before-coverage ordering, entity-value match, delivery-status semantics, timezone coercion, three-way evaluation with false-`SUPPORTED` / contradiction-miss metrics | **Built.** 92% acc / 0.92 F1 / 0 false-`SUPPORTED` on 50 cases |
 | **Frontend** — React 19 + Vite 7 + TS (strict) + Tailwind, 13 tabs wired to real endpoints, ~8k LOC | **Built.** |
 
 ### Phase log
@@ -352,7 +361,7 @@ These are deliberate exclusions, not gaps:
 See [`docs/limitations.md`](docs/limitations.md). In short: this is a hackathon
 demonstration on Razorpay **Test Mode** events plus controlled synthetic
 perturbations — not a production-validated system, and not trained on real
-historical chargeback outcomes. The golden set is 20 cases; per-class metrics
+historical chargeback outcomes. The golden set is 50 cases; per-class metrics
 have wide confidence intervals. Numbers here are measured performance on a
 held-out set with documented methodology — never "production-ready".
 
@@ -378,7 +387,7 @@ backend/
     schemas/       # Pydantic request/response schemas
     services/      # reference evaluator, defense_verifier, ai_* providers, three_way_evaluation, investigation, …
   alembic/         # 12 migrations
-  tests/           # 500 pytest tests
+  tests/           # 525 pytest tests
 frontend/
   src/components/  # DefenseVerification, DefenseEvaluation + 11 platform tabs
   src/lib/api/     # typed API client

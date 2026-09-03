@@ -36,6 +36,14 @@ interface Dataset {
   split_counts: Record<string, number>
   dataset_fingerprint: string | null
   methodology_version: string | null
+  inter_annotator_agreement: {
+    n: number
+    raw_agreement: number
+    cohens_kappa: number
+    interpretation: string
+    disagreement_count: number
+    protocol: string
+  } | null
 }
 
 interface EvalRun {
@@ -82,6 +90,7 @@ export default function DefenseEvaluation() {
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [seeding, setSeeding] = useState(false)
+  const [freezing, setFreezing] = useState(false)
   const [evaluating, setEvaluating] = useState(false)
   const [lastEvalResult, setLastEvalResult] = useState<any>(null)
 
@@ -109,6 +118,16 @@ export default function DefenseEvaluation() {
       await fetchData()
     } finally {
       setSeeding(false)
+    }
+  }
+
+  const freezeDataset = async () => {
+    setFreezing(true)
+    try {
+      await fetch('/api/v1/defense/evaluation/freeze', { method: 'POST' })
+      await fetchData()
+    } finally {
+      setFreezing(false)
     }
   }
 
@@ -151,6 +170,16 @@ export default function DefenseEvaluation() {
               {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sprout className="h-3.5 w-3.5" />}
               {seeding ? 'Seeding…' : 'Seed golden cases'}
             </button>
+            {ds && !ds.is_frozen && (
+              <button
+                onClick={freezeDataset}
+                disabled={freezing}
+                className="neo-btn flex items-center gap-2 text-xs disabled:opacity-50"
+              >
+                {freezing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lock className="h-3.5 w-3.5" />}
+                {freezing ? 'Freezing…' : 'Freeze dataset'}
+              </button>
+            )}
             <button
               onClick={runEvaluation}
               disabled={evaluating || !ds}
@@ -164,7 +193,7 @@ export default function DefenseEvaluation() {
       />
 
       {/* Headline metrics — always visible, so the result is never buried */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat
           label="Accuracy"
           value={accuracy !== null ? `${(accuracy * 100).toFixed(1)}%` : '—'}
@@ -188,9 +217,24 @@ export default function DefenseEvaluation() {
         <Stat
           label="Split protocol"
           value={ds?.is_frozen ? 'Frozen' : 'Open'}
-          hint={ds?.is_frozen ? 'held-out, immutable' : 'not yet frozen'}
+          hint={ds?.is_frozen ? 'held-out, immutable' : 'freeze before reporting'}
           tone={ds?.is_frozen ? 'success' : 'warning'}
           icon={ds?.is_frozen ? Lock : LockOpen}
+        />
+        <Stat
+          label="Cohen's κ"
+          value={
+            ds?.inter_annotator_agreement
+              ? ds.inter_annotator_agreement.cohens_kappa.toFixed(2)
+              : '—'
+          }
+          hint={
+            ds?.inter_annotator_agreement
+              ? `${ds.inter_annotator_agreement.interpretation} · ${ds.inter_annotator_agreement.disagreement_count} disagree`
+              : 'two label passes'
+          }
+          tone="info"
+          icon={Layers}
         />
       </div>
 
@@ -229,7 +273,10 @@ export default function DefenseEvaluation() {
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetaItem label="Evaluator" value={ds?.methodology_version ?? 'REF_EVAL_V2'} />
           <MetaItem label="Scope" value="DELIVERY_NOT_RECEIVED" />
-          <MetaItem label="AI layer" value="Not used here — see AI Verify" />
+          <MetaItem
+            label="Agreement protocol"
+            value={ds?.inter_annotator_agreement?.protocol ?? 'primary + self-adjudication'}
+          />
           <MetaItem
             label="Dataset fingerprint"
             value={ds?.dataset_fingerprint ? `${ds.dataset_fingerprint.slice(0, 16)}…` : '—'}

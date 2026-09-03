@@ -18,7 +18,11 @@ from app.api.v1.router import router as v1_router
 from app.core.config import get_settings
 from app.core.errors import unhandled_exception_handler
 from app.core.logging import configure_logging
-from app.core.middleware import CorrelationIDMiddleware
+from app.core.middleware import (
+    CorrelationIDMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.services.redis_client import close_redis_connection
 from app.services.webhook_worker import start_worker, stop_worker
 
@@ -83,14 +87,19 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Order matters: last added runs first. We want security headers on every
+    # response (incl. rate-limit 429s), then the limiter, then correlation IDs.
     app.add_middleware(CorrelationIDMiddleware)
+    app.add_middleware(RateLimitMiddleware, per_minute=settings.rate_limit_per_minute)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
+        allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"],
+        max_age=600,
     )
 
     app.add_exception_handler(Exception, unhandled_exception_handler)  # type: ignore[arg-type]

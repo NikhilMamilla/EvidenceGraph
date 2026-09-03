@@ -4,8 +4,9 @@ Phase 21-23 — Chargeback Defense Verifier test suite.
 Covers the four pillars a Track-02 submission is graded on:
 
   1. GOLDEN BASELINE   — the deterministic reference evaluator run over the
-     20 golden delivery-dispute cases, with measured accuracy / macro-F1 and a
-     hard floor that must beat the majority-class baseline (B1).
+     50 golden delivery-dispute cases, with measured accuracy / macro-F1, a
+     Cohen's-kappa agreement check, a hard floor that must beat the
+     majority-class baseline (B1), and a freeze protocol.
   2. METAMORPHIC       — M1..M10: transformations whose effect on the verdict
      is known in advance (duplicates/reorder/irrelevant => unchanged;
      remove-required => INSUFFICIENT; inject-contradiction => CONTRADICTED; ...).
@@ -157,9 +158,9 @@ def verdict(db, case: DefenseCase, at: datetime | None = None) -> str:
 # 1. GOLDEN BASELINE  — the measured deterministic evaluation (B2)
 # ===========================================================================
 class TestGoldenBaseline:
-    def test_all_20_golden_cases_seed_and_evaluate(self, db):
+    def test_all_golden_cases_seed_and_evaluate(self, db):
         summary = seed_golden_cases(db)
-        assert summary["cases_created"] == 20
+        assert summary["cases_created"] == 50
         assert set(summary["label_distribution"]) <= {
             VerificationLabel.SUPPORTED,
             VerificationLabel.INSUFFICIENT_EVIDENCE,
@@ -185,19 +186,19 @@ class TestGoldenBaseline:
         print(f"[baseline B1 majority-class] accuracy={b1_accuracy:.3f}")
 
         # Acceptance criteria (evaluation-gate §27). Floors are set below the
-        # measured REF_EVAL_V2 numbers (acc 0.90 / macro-F1 ~0.86) so ordinary
-        # noise doesn't fail CI, but a real regression does.
-        assert acc >= 0.85, f"deterministic accuracy {acc:.3f} below floor"
-        assert macro_f1 >= 0.78, f"deterministic macro-F1 {macro_f1:.3f} below floor"
+        # measured REF_EVAL_V2 numbers on the 50-case set (acc 0.92 / macro-F1
+        # 0.92) so ordinary noise doesn't fail CI, but a real regression does.
+        assert acc >= 0.88, f"deterministic accuracy {acc:.3f} below floor"
+        assert macro_f1 >= 0.85, f"deterministic macro-F1 {macro_f1:.3f} below floor"
         assert acc > b1_accuracy, "deterministic evaluator must beat majority-class baseline"
 
     def test_seed_is_idempotent(self, db):
         """Re-seeding must not raise (the entrypoint runs it on every boot)."""
         first = seed_golden_cases(db)
         second = seed_golden_cases(db)
-        assert first["cases_created"] == 20
+        assert first["cases_created"] == 50
         assert second["cases_created"] == 0
-        assert db.query(DefenseCase).count() == 20
+        assert db.query(DefenseCase).count() == 50
         assert (
             db.query(EvaluationDataset)
             .filter(EvaluationDataset.dataset_version == EG_DEFENSE_V1_0)
@@ -601,3 +602,83 @@ class TestProviderSelection:
         # disabled, or an unknown provider name -> deterministic stub
         assert type(get_ai_provider(self._cfg("mistral", enabled=False))).__name__ == "TestAIProvider"
         assert type(get_ai_provider(self._cfg("test"))).__name__ == "TestAIProvider"
+
+
+# ===========================================================================
+# 6. DATASET INTEGRITY  — size, inter-annotator agreement, freeze protocol
+# ===========================================================================
+class TestDatasetIntegrity:
+    def test_dataset_is_fifty_cases_across_four_labels(self, db):
+        from collections import Counter
+        from app.services.golden_test_cases import get_golden_cases
+
+        cases = get_golden_cases()
+        assert len(cases) == 50
+        counts = Counter(c.expected_label for c in cases)
+        # every class represented, none dominating past ~1/3
+        assert set(counts) == {
+            VerificationLabel.SUPPORTED,
+            VerificationLabel.INSUFFICIENT_EVIDENCE,
+            VerificationLabel.CONTRADICTED,
+            VerificationLabel.UNKNOWN,
+        }
+        assert max(counts.values()) <= 18
+
+    def test_cohens_kappa_is_substantial_or_better(self, db):
+        from app.services.golden_test_cases import compute_inter_annotator_agreement
+
+        agr = compute_inter_annotator_agreement()
+        assert agr["n"] == 50
+        # Landis & Koch: >= 0.61 substantial, >= 0.81 almost perfect
+        assert agr["cohens_kappa"] >= 0.75, agr
+        assert agr["raw_agreement"] >= 0.85
+
+    def test_adjudication_labels_are_seeded(self, db):
+        seed_golden_cases(db)
+        gt = db.query(EvaluationLabel).filter(EvaluationLabel.label_type == "GROUND_TRUTH").count()
+        adj = db.query(EvaluationLabel).filter(EvaluationLabel.label_type == "ADJUDICATION").count()
+        # one label per claim; a couple of golden cases carry two claims
+        assert gt == adj >= 50
+        gt_cases = {
+            l.case_id for l in db.query(EvaluationLabel)
+            .filter(EvaluationLabel.label_type == "GROUND_TRUTH").all()
+        }
+        assert len(gt_cases) == 50
+
+    def test_freeze_makes_reseed_a_noop(self, db):
+        from app.services.golden_test_cases import freeze_dataset
+
+        seed_golden_cases(db)
+        before = {
+            (l.case_id, l.label_type): l.label
+            for l in db.query(EvaluationLabel).all()
+        }
+        res = freeze_dataset(db)
+        assert res["is_frozen"] is True
+
+        # tamper with an in-memory case then re-seed — frozen dataset must not move
+        again = seed_golden_cases(db)
+        assert again["cases_created"] == 0
+        assert again["frozen"] is True
+        after = {
+            (l.case_id, l.label_type): l.label
+            for l in db.query(EvaluationLabel).all()
+        }
+        assert before == after
+
+    def test_zero_false_supported_holds_on_fifty(self, db):
+        seed_golden_cases(db)
+        gt = {
+            lbl.case_id: lbl.label
+            for lbl in db.query(EvaluationLabel)
+            .filter(EvaluationLabel.label_type == "GROUND_TRUTH")
+            .all()
+        }
+        evaluator = DefenseReferenceEvaluator()
+        false_supported = {
+            c.case_id
+            for c in db.query(DefenseCase).all()
+            if evaluator.evaluate_case(db, c)["case_label"] == VerificationLabel.SUPPORTED
+            and gt.get(c.case_id) != VerificationLabel.SUPPORTED
+        }
+        assert not false_supported, false_supported
