@@ -1131,7 +1131,9 @@ def seed_golden_cases(db: Session) -> dict[str, Any]:
             now = datetime.now(timezone.utc)
             observed_at = now
             if ev_data.get("future"):
-                observed_at = now + timedelta(days=7)
+                # far enough ahead that it stays "future" for the demo lifetime,
+                # regardless of when the seed ran
+                observed_at = now + timedelta(days=3650)
 
             obs = EvidenceObservation(
                 evidence_type=ev_data["evidence_type"],
