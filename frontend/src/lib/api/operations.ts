@@ -19,7 +19,7 @@ export const fetchPipelineStatus = (): Promise<ApiResult<PipelineWatermarkRespon
   httpGet<PipelineWatermarkResponse>('/api/v1/operations/pipeline')
 
 export const runSystemVerification = (): Promise<ApiResult<VerificationRunResponse>> =>
-  httpPost<VerificationRunResponse, {}>('/api/v1/operations/verify', {})
+  httpPost<VerificationRunResponse, Record<string, never>>('/api/v1/operations/verify', {})
 
 export const fetchOperationalIncidents = (windowHours: number = 24): Promise<ApiResult<IncidentTimelineResponse>> =>
   httpGet<IncidentTimelineResponse>(`/api/v1/operations/incidents?window_hours=${windowHours}`)
