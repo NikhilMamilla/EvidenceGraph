@@ -192,6 +192,25 @@ function App() {
       </main>
 
       <AppFooter />
+
+      {/* Floating "back to checklist" — visible on every tab except the guide
+          itself, and fixed so it stays reachable no matter how far the
+          evaluator has scrolled down a tab. */}
+      {activeTab !== 'guide' && (
+        <button
+          type="button"
+          onClick={() => setActiveTab('guide')}
+          className="fixed bottom-5 right-5 sm:bottom-8 sm:right-8 z-50 flex items-center gap-2 rounded-full px-4 py-3 text-xs font-bold shadow-lg transition-transform duration-200 hover:-translate-y-0.5 animate-scale-in"
+          style={{
+            background: 'var(--gradient-primary)',
+            color: 'white',
+            boxShadow: 'var(--shadow-lg, 0 10px 30px rgba(0,0,0,0.35))',
+          }}
+        >
+          <ListChecks className="h-4 w-4" />
+          <span className="hidden sm:inline">Back to checklist</span>
+        </button>
+      )}
     </div>
   )
 }

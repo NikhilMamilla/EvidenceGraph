@@ -7,7 +7,7 @@
  * gates anything and resets freely.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   CheckCircle2,
   Circle,
@@ -98,26 +98,43 @@ function readDone(): Record<string, boolean> {
   }
 }
 
+// Writes synchronously, independent of React's render/effect timing. Clicking
+// a step's "Go to tab" button flips the parent's active tab in the same
+// handler, which unmounts this component before a useEffect keyed on state
+// would ever fire — so persistence can't wait for one. This runs the moment
+// the click happens, so the value is already on disk by the time we unmount.
+function persistDone(next: Record<string, boolean>) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  } catch {
+    /* private mode — fine, just don't persist */
+  }
+}
+
 export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => void }) {
   const [done, setDone] = useState<Record<string, boolean>>(() => readDone())
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(done))
-    } catch {
-      /* private mode — fine, just don't persist */
-    }
-  }, [done])
-
   const toggle = useCallback((id: string) => {
-    setDone(prev => ({ ...prev, [id]: !prev[id] }))
+    setDone(prev => {
+      const next = { ...prev, [id]: !prev[id] }
+      persistDone(next)
+      return next
+    })
   }, [])
 
   const markDone = useCallback((id: string) => {
-    setDone(prev => (prev[id] ? prev : { ...prev, [id]: true }))
+    setDone(prev => {
+      if (prev[id]) return prev
+      const next = { ...prev, [id]: true }
+      persistDone(next)
+      return next
+    })
   }, [])
 
-  const reset = useCallback(() => setDone({}), [])
+  const reset = useCallback(() => {
+    persistDone({})
+    setDone({})
+  }, [])
 
   const completedCount = STEPS.filter(s => done[s.id]).length
   const allDone = completedCount === STEPS.length
