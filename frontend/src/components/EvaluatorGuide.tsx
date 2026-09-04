@@ -21,6 +21,7 @@ import {
   GitBranch,
   BookOpen,
   Sparkles,
+  PartyPopper,
 } from 'lucide-react'
 import { PageHeader, Panel, Pill } from './ui'
 import type { TabKey } from '../App'
@@ -112,9 +113,14 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
     setDone(prev => ({ ...prev, [id]: !prev[id] }))
   }, [])
 
+  const markDone = useCallback((id: string) => {
+    setDone(prev => (prev[id] ? prev : { ...prev, [id]: true }))
+  }, [])
+
   const reset = useCallback(() => setDone({}), [])
 
   const completedCount = STEPS.filter(s => done[s.id]).length
+  const allDone = completedCount === STEPS.length
 
   return (
     <div className="space-y-6">
@@ -124,7 +130,7 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
         subtitle="A pre-submission chargeback-defense verifier for Razorpay Track 02: AI Risk Manager. Seven steps, in order, so you see everything that matters in one pass."
         actions={
           <>
-            <Pill tone="accent" icon={CheckCircle2}>
+            <Pill tone={allDone ? 'success' : 'accent'} icon={CheckCircle2}>
               {completedCount} / {STEPS.length} complete
             </Pill>
             {completedCount > 0 && (
@@ -141,6 +147,45 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
         }
       />
 
+      <div
+        className="h-1.5 w-full overflow-hidden rounded-full"
+        style={{ background: 'var(--color-bg-surface)' }}
+        role="progressbar"
+        aria-valuenow={completedCount}
+        aria-valuemin={0}
+        aria-valuemax={STEPS.length}
+      >
+        <div
+          className="h-full rounded-full transition-[width] duration-500 ease-out"
+          style={{
+            width: `${(completedCount / STEPS.length) * 100}%`,
+            background: allDone ? 'var(--color-success)' : 'var(--gradient-primary)',
+          }}
+        />
+      </div>
+
+      {allDone && (
+        <div
+          className="glass-card premium-ring flex animate-scale-in items-center gap-3.5 p-5"
+          style={{
+            background: 'color-mix(in srgb, var(--color-success) 8%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--color-success) 28%, transparent)',
+          }}
+        >
+          <span className="neo-pressed shrink-0 rounded-xl p-2.5" style={{ background: 'color-mix(in srgb, var(--color-success) 18%, transparent)' }}>
+            <PartyPopper className="h-5 w-5" style={{ color: 'var(--color-success)' }} />
+          </span>
+          <div>
+            <p className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+              All seven checks complete.
+            </p>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+              You've seen the deterministic verdict, the safety guarantee, the measured accuracy, and the platform underneath it. That's the whole project.
+            </p>
+          </div>
+        </div>
+      )}
+
       <Panel title="The one-sentence version" icon={ShieldCheck}>
         <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
           Payment systems can tell you how risky a transaction looks. They don't necessarily tell
@@ -154,11 +199,17 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
       <div className="space-y-4">
         {STEPS.map((step, i) => {
           const isDone = !!done[step.id]
+          const autoMarks = !!(step.nav || step.external)
           return (
             <div
               key={step.id}
-              className="glass-card flex flex-col gap-4 p-5 transition-opacity sm:flex-row sm:items-start"
-              style={{ opacity: isDone ? 0.6 : 1 }}
+              className="glass-card flex flex-col gap-4 p-5 transition-all duration-300 sm:flex-row sm:items-start"
+              style={{
+                opacity: isDone ? 0.65 : 1,
+                borderColor: isDone
+                  ? 'color-mix(in srgb, var(--color-success) 30%, var(--color-border))'
+                  : undefined,
+              }}
             >
               <button
                 type="button"
@@ -177,19 +228,29 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
                   {i + 1}
                 </span>
                 {isDone ? (
-                  <CheckCircle2 className="h-5 w-5" style={{ color: 'var(--color-success)' }} />
+                  <CheckCircle2 key="done" className="h-5 w-5 animate-scale-in" style={{ color: 'var(--color-success)' }} />
                 ) : (
                   <Circle className="h-5 w-5" style={{ color: 'var(--color-text-tertiary)' }} />
                 )}
               </button>
 
               <div className="min-w-0 flex-1 space-y-2">
-                <h3
-                  className="text-sm font-bold tracking-tight"
-                  style={{ color: 'var(--color-text-primary)' }}
-                >
-                  {step.title}
-                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3
+                    className="text-sm font-bold tracking-tight"
+                    style={{ color: 'var(--color-text-primary)' }}
+                  >
+                    {step.title}
+                  </h3>
+                  {autoMarks && !isDone && (
+                    <span
+                      className="text-[10px] font-medium italic"
+                      style={{ color: 'var(--color-text-tertiary)' }}
+                    >
+                      auto-checks when you open it
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
                   {step.body}
                 </p>
@@ -206,7 +267,10 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
                 {step.nav && (
                   <button
                     type="button"
-                    onClick={() => onNavigate(step.nav!.tab)}
+                    onClick={() => {
+                      onNavigate(step.nav!.tab)
+                      markDone(step.id)
+                    }}
                     className="tab-glass-active mt-1 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold"
                   >
                     {step.nav.label}
@@ -218,6 +282,7 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
                     href={step.external.href}
                     target="_blank"
                     rel="noreferrer noopener"
+                    onClick={() => markDone(step.id)}
                     className="tab-glass mt-1 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold"
                     style={{ color: 'var(--color-text-primary)' }}
                   >
