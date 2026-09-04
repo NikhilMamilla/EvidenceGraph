@@ -149,31 +149,36 @@ help or stay neutral, never hurt), and 8 adversarial attacks that must all fail
 ## How it works
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 55, 'rankSpacing': 85, 'padding': 20, 'curve': 'basis'}}}%%
 flowchart TD
     IN["Merchant defense text&nbsp; + &nbsp;dispute reason&nbsp; + &nbsp;evidence items"]
     IN --> GATE{"AI_ENABLED ?"}
+
     GATE -- "false · default" --> DET
     GATE -- "true" --> AI
 
-    subgraph AI ["AI semantic layer · advisory only · pluggable provider"]
+    subgraph AI ["AI semantic layer &nbsp;·&nbsp; advisory only &nbsp;·&nbsp; pluggable provider"]
         direction TB
-        A1["Claim extraction<br>from free text"] --> A2["Evidence-relevance<br>proposals"] --> A3["Hallucinated-ID rejection<br>prompt-injection isolation"]
+        A1["Claim extraction<br>from free text"]
+        A2["Evidence-relevance<br>proposals"]
+        A3["Hallucinated-ID rejection<br>prompt-injection isolation"]
+        A1 --> A2 --> A3
     end
     AI -- "structured claims&nbsp;+&nbsp;candidate evidence links" --> DET
 
-    subgraph DET ["EvidenceGraph — deterministic · final authority"]
+    subgraph DET ["EvidenceGraph &nbsp;—&nbsp; deterministic &nbsp;·&nbsp; final authority"]
         direction TB
-        C1["1 · Contradiction detection<br><i>authoritative-source conflict</i>"]
-        C2["2 · Provenance filter<br><i>unbroken lineage to a real event</i>"]
-        C3["3 · Structural value semantics<br><i>entity match + conclusive status</i>"]
-        C4["4 · Coverage / completeness<br><i>required evidence types present</i>"]
-        C5["5 · Source independence<br><i>distinct underlying sources</i>"]
+        C1["1 &nbsp;·&nbsp; Contradiction detection<br><i>authoritative-source conflict</i>"]
+        C2["2 &nbsp;·&nbsp; Provenance filter<br><i>unbroken lineage to a real event</i>"]
+        C3["3 &nbsp;·&nbsp; Structural value semantics<br><i>entity match + conclusive status</i>"]
+        C4["4 &nbsp;·&nbsp; Coverage / completeness<br><i>required evidence types present</i>"]
+        C5["5 &nbsp;·&nbsp; Source independence<br><i>distinct underlying sources</i>"]
         C1 --> C2 --> C3 --> C4 --> C5
     end
 
     C1 -. "conflict → short-circuit" .-> V
-    C5 --> TRACE["+ SHA-256 decision trace · point-in-time replay"]
-    TRACE --> V(["<b>SUPPORTED</b> · <b>INSUFFICIENT_EVIDENCE</b> · <b>CONTRADICTED</b> · <b>UNKNOWN</b><br>+ explanation + supporting / contradicting evidence IDs"])
+    C5 --> TRACE["+ SHA-256 decision trace<br>point-in-time replay"]
+    TRACE --> V(["<b>SUPPORTED</b> &nbsp;·&nbsp; <b>INSUFFICIENT_EVIDENCE</b> &nbsp;·&nbsp; <b>CONTRADICTED</b> &nbsp;·&nbsp; <b>UNKNOWN</b><br>+ explanation + supporting / contradicting evidence IDs"])
 ```
 
 The five checks run **in this fixed order**, and the order is itself part of the
@@ -194,9 +199,10 @@ design, not an implementation detail:
    twice never inflates confidence.
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 65, 'rankSpacing': 100, 'padding': 20, 'curve': 'basis'}}}%%
 flowchart LR
     U(["Browser"]) --> FE["React · Vite · TS<br>nginx — Docker"]
-    FE -- "HTTP · /api/v1" --> BE["FastAPI backend<br>deterministic engine&nbsp;+&nbsp;optional AI layer"]
+    FE -- "HTTP&nbsp;·&nbsp;/api/v1" --> BE["FastAPI backend<br>deterministic engine&nbsp;+&nbsp;optional AI layer"]
     BE --> DB[("Supabase PostgreSQL<br>SSL · session pooler")]
     BE --> R[("Redis<br>webhook queue&nbsp;+&nbsp;worker")]
     BE -. "AI_ENABLED=true" .-> LLM["LLM provider<br>anthropic · mistral · openai"]
