@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
@@ -130,6 +131,66 @@ class DefenseVerifier:
             deterministic=deterministic_result,
             ai_run_id=ai_run_id,
         )
+
+    def verify_defense_batch(
+        self,
+        db: Session,
+        items: list[tuple[str, str]],
+        evaluation_time: datetime | None = None,
+        max_workers: int = 8,
+    ) -> dict[str, DefenseVerificationResult]:
+        """
+        Batch verification for many independent (case_id, defense_text) pairs —
+        used by the three-way evaluation, which otherwise runs the full 50-case
+        golden set through a real LLM one case at a time (two network calls
+        each, fully sequential), taking minutes.
+
+        This is not verify_defense wrapped in a thread pool. A SQLAlchemy
+        Session is not safe for concurrent use from multiple threads, so every
+        database read and write here stays on the calling thread. Only the
+        network-bound AI calls — which never touch `db` — run concurrently:
+
+          Phase 1 (sequential, DB reads)   — pull each case + its candidate evidence
+          Phase 2 (parallel, network only) — claim extraction + evidence matching
+          Phase 3 (sequential, DB writes)  — persist AI output, run the deterministic evaluator
+        """
+        if evaluation_time is None:
+            evaluation_time = datetime.now(timezone.utc)
+
+        prepared: list[dict[str, Any]] = []
+        for case_id, defense_text in items:
+            case = db.query(DefenseCase).filter(DefenseCase.case_id == case_id).first()
+            prepared.append({
+                "case_id": case_id,
+                "defense_text": defense_text,
+                "case": case,
+                "candidates": self._retrieve_candidates(db, case),
+            })
+
+        def _ai_phase(item: dict[str, Any]) -> dict[str, Any]:
+            extraction = self._extract_claims(item["defense_text"])
+            matches = self._match_evidence(extraction.claims, item["candidates"])
+            return {**item, "extraction": extraction, "matches": matches}
+
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            ai_results = list(pool.map(_ai_phase, prepared))
+
+        results: dict[str, DefenseVerificationResult] = {}
+        for item in ai_results:
+            case_id = item["case_id"]
+            validated = self._validate_references(item["matches"].matches, item["candidates"])
+            self._build_records(db, case_id, item["extraction"], validated)
+            deterministic = self._run_deterministic(db, item["case"], evaluation_time)
+            results[case_id] = self._assemble_result(
+                case_id=case_id,
+                defense_text=item["defense_text"],
+                extraction=item["extraction"],
+                matches=validated,
+                deterministic=deterministic,
+                ai_run_id=f"AI_{uuid.uuid4().hex[:12].upper()}",
+            )
+
+        return results
 
     def _extract_claims(self, defense_text: str) -> ClaimExtractionResult:
         """AI extracts claims from defense text."""

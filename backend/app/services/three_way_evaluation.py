@@ -103,8 +103,19 @@ class ThreeWayEvaluator:
         return self._compute_metrics(predictions, "TRACK_A_DETERMINISTIC")
 
     def _run_track_b(self, db: Session, cases: list) -> dict[str, Any]:
-        """Track B: TestAIProvider + EvidenceGraph."""
+        """Track B: TestAIProvider + EvidenceGraph.
+
+        Forces the deterministic test-stub provider explicitly, regardless of
+        what AI_PROVIDER is globally configured to. Track B exists to isolate
+        "does the AI layer's structure help at all" from "is the specific real
+        model good" — if it silently inherited the real provider whenever one
+        is enabled, it would collapse into a second copy of Track C: slower for
+        no reason, and no longer answering a different question.
+        """
+        from app.services.ai_test_provider import TestAIProvider
+
         verifier = DefenseVerifier()
+        verifier.provider = TestAIProvider()
         predictions = []
 
         for case in cases:
@@ -150,20 +161,21 @@ class ThreeWayEvaluator:
         verifier = DefenseVerifier()
         verifier.provider = provider
 
+        # Real-LLM calls are the actual cost here — two network round trips per
+        # case, sequentially, over the whole golden set is minutes of nothing
+        # but waiting on a socket. verify_defense_batch runs those concurrently
+        # while keeping every DB read/write on this thread.
+        items = [(case.case_id, self._get_defense_text(case)) for case in cases]
+        try:
+            batch_results = verifier.verify_defense_batch(db, items)
+        except Exception:
+            batch_results = {}
+
         predictions = []
         for case in cases:
             gt = self._get_ground_truth(db, case.case_id)
-            defense_text = self._get_defense_text(case)
-
-            try:
-                result = verifier.verify_defense(
-                    db=db,
-                    case_id=case.case_id,
-                    defense_text=defense_text,
-                )
-                predicted = result.final_decision
-            except Exception:
-                predicted = VerificationLabel.UNKNOWN
+            result = batch_results.get(case.case_id)
+            predicted = result.final_decision if result else VerificationLabel.UNKNOWN
 
             predictions.append({
                 "case_id": case.case_id,
