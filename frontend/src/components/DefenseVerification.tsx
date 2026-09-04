@@ -486,7 +486,7 @@ export default function DefenseVerification() {
         </div>
       )}
 
-      <ThreeWayComparison />
+      <ThreeWayComparison aiEnabled={aiEnabled} />
     </div>
   )
 }
@@ -513,7 +513,7 @@ function ConfidenceBar({ value }: { value: number }) {
 
 /* ── Three-way evaluation ───────────────────────────────────────── */
 
-function ThreeWayComparison() {
+function ThreeWayComparison({ aiEnabled }: { aiEnabled: boolean }) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
@@ -544,21 +544,40 @@ function ThreeWayComparison() {
           title="Compare deterministic vs test-AI vs real LLM"
           hint="Runs the whole golden set through all three tracks and reports accuracy, macro-F1 and the safety metrics that matter — false-SUPPORTED rate and contradiction-miss rate."
           action={
-            <button
-              onClick={runEval}
-              disabled={loading}
-              className="neo-btn-primary mt-1 flex items-center gap-2 text-sm disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Evaluating…
-                </>
+            <div className="flex flex-col items-center gap-2.5">
+              <button
+                onClick={runEval}
+                disabled={loading}
+                className="neo-btn-primary mt-1 flex items-center gap-2 text-sm disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Evaluating…
+                  </>
+                ) : (
+                  <>
+                    <FlaskConical className="h-4 w-4" /> Run three-way evaluation
+                  </>
+                )}
+              </button>
+              {aiEnabled ? (
+                <p
+                  className="max-w-sm text-center text-[11px] leading-relaxed"
+                  style={{ color: 'var(--color-text-tertiary)' }}
+                >
+                  {loading
+                    ? 'Track C is calling a real LLM for each of the 50 cases, in parallel — expect roughly 30–60 seconds. The spinner staying up is normal, not a hang.'
+                    : 'A real LLM provider is enabled, so this makes actual network calls for all 50 cases — expect roughly 30–60 seconds, not instant.'}
+                </p>
               ) : (
-                <>
-                  <FlaskConical className="h-4 w-4" /> Run three-way evaluation
-                </>
+                <p
+                  className="max-w-sm text-center text-[11px] leading-relaxed"
+                  style={{ color: 'var(--color-text-tertiary)' }}
+                >
+                  No real LLM is enabled right now, so this runs the deterministic engine and a stub AI only — a few seconds.
+                </p>
               )}
-            </button>
+            </div>
           }
         />
       </Panel>

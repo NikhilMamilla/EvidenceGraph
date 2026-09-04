@@ -114,7 +114,7 @@ export function AppFooter() {
       </div>
 
       <div
-        className="mt-8 flex flex-col items-center justify-between gap-2 pt-6 sm:flex-row"
+        className="mt-8 grid grid-cols-1 items-center gap-3 pt-6 text-center sm:grid-cols-3 sm:gap-2 sm:text-left"
         style={{ borderTop: '1px solid var(--color-border)' }}
       >
         <p
@@ -123,7 +123,13 @@ export function AppFooter() {
         >
           Razorpay Buildathon 2026 · Track 02
         </p>
-        <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+        <p
+          className="text-center text-[11px] font-semibold uppercase tracking-[0.2em]"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          Created by Nikhil Mamilla
+        </p>
+        <p className="text-[11px] sm:text-right" style={{ color: 'var(--color-text-tertiary)' }}>
           Hackathon demonstration on Razorpay Test Mode data — not production-validated.
         </p>
       </div>

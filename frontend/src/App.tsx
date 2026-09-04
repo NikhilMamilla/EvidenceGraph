@@ -1,23 +1,9 @@
-import { useState, useEffect } from 'react'
-import { SystemStatus } from './components/SystemStatus'
-
-import { OperationsDashboard } from './components/OperationsDashboard'
-import { LiveEventFeed } from './components/LiveEventFeed'
-import { EvidenceGraphViz } from './components/EvidenceGraphViz'
-import { RiskScoreGauge } from './components/RiskScoreGauge'
-import { FraudAlerts } from './components/FraudAlerts'
-import { InvestigationCenter } from './components/InvestigationCenter'
-import { PaymentFailures } from './components/PaymentFailures'
-import { PaymentInspector } from './components/PaymentInspector'
-import { NotificationCenter } from './components/NotificationCenter'
-import { RevenueIntelligence } from './components/RevenueIntelligence'
-import { MerchantRiskDashboard } from './components/MerchantRiskDashboard'
-import DefenseEvaluation from './components/DefenseEvaluation'
-import DefenseVerification from './components/DefenseVerification'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { EvaluatorGuide } from './components/EvaluatorGuide'
 import { SectionIntro } from './components/SectionIntro'
 import { SECTION_INTROS } from './content/sectionIntros'
 import { AppFooter } from './components/AppFooter'
+import { LoadingState } from './components/ui'
 import {
   Activity,
   Shield,
@@ -36,6 +22,25 @@ import {
   Scale,
   ListChecks,
 } from 'lucide-react'
+
+// Every tab below is code-split — the browser only fetches and parses the
+// one you're actually looking at, instead of all fourteen up front. Only
+// EvaluatorGuide (the landing tab) and the always-visible chrome above stay
+// in the main bundle, since those are needed on the very first paint anyway.
+const SystemStatus = lazy(() => import('./components/SystemStatus').then(m => ({ default: m.SystemStatus })))
+const OperationsDashboard = lazy(() => import('./components/OperationsDashboard').then(m => ({ default: m.OperationsDashboard })))
+const LiveEventFeed = lazy(() => import('./components/LiveEventFeed').then(m => ({ default: m.LiveEventFeed })))
+const EvidenceGraphViz = lazy(() => import('./components/EvidenceGraphViz').then(m => ({ default: m.EvidenceGraphViz })))
+const RiskScoreGauge = lazy(() => import('./components/RiskScoreGauge').then(m => ({ default: m.RiskScoreGauge })))
+const FraudAlerts = lazy(() => import('./components/FraudAlerts').then(m => ({ default: m.FraudAlerts })))
+const InvestigationCenter = lazy(() => import('./components/InvestigationCenter').then(m => ({ default: m.InvestigationCenter })))
+const PaymentFailures = lazy(() => import('./components/PaymentFailures').then(m => ({ default: m.PaymentFailures })))
+const PaymentInspector = lazy(() => import('./components/PaymentInspector').then(m => ({ default: m.PaymentInspector })))
+const NotificationCenter = lazy(() => import('./components/NotificationCenter').then(m => ({ default: m.NotificationCenter })))
+const RevenueIntelligence = lazy(() => import('./components/RevenueIntelligence').then(m => ({ default: m.RevenueIntelligence })))
+const MerchantRiskDashboard = lazy(() => import('./components/MerchantRiskDashboard').then(m => ({ default: m.MerchantRiskDashboard })))
+const DefenseEvaluation = lazy(() => import('./components/DefenseEvaluation'))
+const DefenseVerification = lazy(() => import('./components/DefenseVerification'))
 
 export type TabKey = 'guide' | 'live' | 'notifications' | 'risk' | 'graph' | 'fraud' | 'failures' | 'revenue' | 'merchant' | 'investigate' | 'payments' | 'operations' | 'defense' | 'defense-ai'
 
@@ -169,26 +174,28 @@ function App() {
         {SECTION_INTROS[activeTab] && <SectionIntro {...SECTION_INTROS[activeTab]} />}
 
         {activeTab === 'guide' && <EvaluatorGuide onNavigate={setActiveTab} />}
-        {activeTab === 'live' && <LiveEventFeed />}
-        {activeTab === 'notifications' && <NotificationCenter />}
-        {activeTab === 'risk' && <RiskScoreGauge />}
-        {activeTab === 'graph' && <EvidenceGraphViz />}
-        {activeTab === 'fraud' && <FraudAlerts />}
-        {activeTab === 'failures' && <PaymentFailures />}
-        {activeTab === 'revenue' && <RevenueIntelligence />}
-        {activeTab === 'merchant' && <MerchantRiskDashboard />}
-        {activeTab === 'investigate' && <InvestigationCenter />}
-        {activeTab === 'payments' && <PaymentInspector />}
-        {activeTab === 'operations' && (
-          <div className="space-y-6">
-            <div className="w-full flex flex-col lg:flex-row gap-6">
-              <SystemStatus />
+        <Suspense fallback={<LoadingState label="Loading tab…" />}>
+          {activeTab === 'live' && <LiveEventFeed />}
+          {activeTab === 'notifications' && <NotificationCenter />}
+          {activeTab === 'risk' && <RiskScoreGauge />}
+          {activeTab === 'graph' && <EvidenceGraphViz />}
+          {activeTab === 'fraud' && <FraudAlerts />}
+          {activeTab === 'failures' && <PaymentFailures />}
+          {activeTab === 'revenue' && <RevenueIntelligence />}
+          {activeTab === 'merchant' && <MerchantRiskDashboard />}
+          {activeTab === 'investigate' && <InvestigationCenter />}
+          {activeTab === 'payments' && <PaymentInspector />}
+          {activeTab === 'operations' && (
+            <div className="space-y-6">
+              <div className="w-full flex flex-col lg:flex-row gap-6">
+                <SystemStatus />
+              </div>
+              <OperationsDashboard />
             </div>
-            <OperationsDashboard />
-          </div>
-        )}
-        {activeTab === 'defense' && <DefenseEvaluation />}
-        {activeTab === 'defense-ai' && <DefenseVerification />}
+          )}
+          {activeTab === 'defense' && <DefenseEvaluation />}
+          {activeTab === 'defense-ai' && <DefenseVerification />}
+        </Suspense>
       </main>
 
       <AppFooter />

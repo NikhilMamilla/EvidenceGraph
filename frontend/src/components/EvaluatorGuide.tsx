@@ -289,6 +289,28 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 )}
+                {!step.nav && !step.external && (
+                  <button
+                    type="button"
+                    onClick={() => toggle(step.id)}
+                    className="mt-1 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold"
+                    style={{
+                      background: isDone ? 'var(--color-bg-surface)' : 'var(--gradient-primary)',
+                      color: isDone ? 'var(--color-text-secondary)' : 'white',
+                      border: isDone ? '1px solid var(--color-border)' : 'none',
+                    }}
+                  >
+                    {isDone ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Marked as read
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Got it — mark complete
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           )
