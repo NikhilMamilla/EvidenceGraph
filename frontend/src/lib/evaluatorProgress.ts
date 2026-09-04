@@ -49,3 +49,33 @@ export function resetGuideProgress(): void {
     /* private mode — fine, just don't persist */
   }
 }
+
+/**
+ * Which step's "Go to tab" button was last clicked. Read on landing back on
+ * the checklist tab, to scroll straight to that specific step instead of
+ * just the top of the list — so "open Operations, check it, come back"
+ * returns you to step 1 exactly, and "open AI Verify, come back" (from step
+ * 2 or step 3) returns you to whichever of those you left from. Not cleared
+ * after reading — revisiting the checklist keeps landing on the same step
+ * until a different step's button is clicked, which is the expected
+ * "resume where I left off" behaviour. sessionStorage because this is
+ * navigation state for the current visit, not progress worth remembering
+ * across a new session.
+ */
+const LAST_STEP_KEY = 'eg:evaluator-checklist:last-step'
+
+export function setLastVisitedStep(id: string): void {
+  try {
+    sessionStorage.setItem(LAST_STEP_KEY, id)
+  } catch {
+    /* private mode — fine, this is a nice-to-have */
+  }
+}
+
+export function getLastVisitedStep(): string | null {
+  try {
+    return sessionStorage.getItem(LAST_STEP_KEY)
+  } catch {
+    return null
+  }
+}

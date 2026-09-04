@@ -25,7 +25,13 @@ import {
 } from 'lucide-react'
 import { PageHeader, Panel, Pill } from './ui'
 import type { TabKey } from '../App'
-import { markGuideStepDone, readGuideProgress, resetGuideProgress, setGuideStep } from '../lib/evaluatorProgress'
+import {
+  markGuideStepDone,
+  readGuideProgress,
+  resetGuideProgress,
+  setGuideStep,
+  setLastVisitedStep,
+} from '../lib/evaluatorProgress'
 
 const REPO_URL = 'https://github.com/NikhilMamilla/EvidenceGraph'
 
@@ -205,12 +211,14 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
           return (
             <div
               key={step.id}
+              id={`checklist-step-${step.id}`}
               className="glass-card flex flex-col gap-4 p-5 transition-all duration-300 sm:flex-row sm:items-start"
               style={{
                 opacity: isDone ? 0.65 : 1,
                 borderColor: isDone
                   ? 'color-mix(in srgb, var(--color-success) 30%, var(--color-border))'
                   : undefined,
+                scrollMarginTop: 20,
               }}
             >
               <button
@@ -269,7 +277,10 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
                 {step.nav && (
                   <button
                     type="button"
-                    onClick={() => onNavigate(step.nav!.tab)}
+                    onClick={() => {
+                      setLastVisitedStep(step.id)
+                      onNavigate(step.nav!.tab)
+                    }}
                     className="tab-glass-active mt-1 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold"
                   >
                     {step.nav.label}

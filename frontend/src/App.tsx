@@ -1,9 +1,10 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { EvaluatorGuide } from './components/EvaluatorGuide'
 import { SectionIntro } from './components/SectionIntro'
 import { SECTION_INTROS } from './content/sectionIntros'
 import { AppFooter } from './components/AppFooter'
 import { LoadingState } from './components/ui'
+import { getLastVisitedStep } from './lib/evaluatorProgress'
 import {
   Activity,
   Shield,
@@ -47,18 +48,37 @@ export type TabKey = 'guide' | 'live' | 'notifications' | 'risk' | 'graph' | 'fr
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('guide')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const mainRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
   // Every tab switch is a client-side state change, not a real page
-  // navigation, so the browser has no reason to reset scroll on its own —
-  // without this, switching tabs while scrolled down (e.g. Operations back
-  // to the checklist) lands you wherever the previous tab left off, which
-  // reads as broken since there's nothing there to scroll to.
+  // navigation, so the browser has no reason to reset scroll on its own.
+  // Two cases:
+  //  - Landing back on the checklist after using one of its "Go to tab"
+  //    buttons scrolls straight to that specific step, not just the top of
+  //    the list, so "open Operations, check it, come back" returns you to
+  //    step 1 exactly rather than somewhere you have to hunt from.
+  //  - Every other switch scrolls to the top of <main> — past the app's own
+  //    hero title and tab bar — so the tab's own heading (System Status, AI
+  //    Defense Verifier, ...) is the first thing in view, not a repeat of
+  //    chrome that's already been seen.
   useEffect(() => {
-    window.scrollTo(0, 0)
+    const frame = requestAnimationFrame(() => {
+      if (activeTab === 'guide') {
+        const lastStepId = getLastVisitedStep()
+        const target = lastStepId && document.getElementById(`checklist-step-${lastStepId}`)
+        if (target) {
+          target.scrollIntoView({ behavior: 'auto', block: 'start' })
+          return
+        }
+      }
+      const top = mainRef.current?.offsetTop ?? 0
+      window.scrollTo(0, Math.max(0, top - 16))
+    })
+    return () => cancelAnimationFrame(frame)
   }, [activeTab])
 
   const tabs = [
@@ -179,7 +199,7 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="w-full max-w-6xl mx-auto animate-slide-up" style={{ animationDelay: '0.3s' }}>
+      <main ref={mainRef} className="w-full max-w-6xl mx-auto animate-slide-up" style={{ animationDelay: '0.3s' }}>
         {SECTION_INTROS[activeTab] && <SectionIntro {...SECTION_INTROS[activeTab]} />}
 
         {activeTab === 'guide' && <EvaluatorGuide onNavigate={setActiveTab} />}
