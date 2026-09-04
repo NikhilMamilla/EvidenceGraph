@@ -980,7 +980,7 @@ export function PaymentInspector() {
 
             {/* No conflicts message */}
             {selectedConsistency.total_conflicts === 0 && (
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/5 border border-green-500/20 text-green-400 text-sm">
+              <div className="mt-4 flex items-center gap-3 p-4 rounded-lg bg-green-500/5 border border-green-500/20 text-green-400 text-sm">
                 <CheckCircle className="w-4 h-4 shrink-0" />
                 <div>
                   <div className="font-medium">No contradictions detected</div>
@@ -991,7 +991,7 @@ export function PaymentInspector() {
 
             {/* Conflict cards */}
             {selectedConsistency.conflicts.length > 0 && (
-              <div className="space-y-3">
+              <div className="mt-4 space-y-3">
                 <h4 className="text-xs uppercase tracking-widest text-slate-500 font-medium">Conflict Observations</h4>
                 {selectedConsistency.conflicts.map((conflict) => {
                   const severityStyles: Record<string, string> = {

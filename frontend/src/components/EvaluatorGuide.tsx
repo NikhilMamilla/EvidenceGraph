@@ -173,28 +173,6 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
         />
       </div>
 
-      {allDone && (
-        <div
-          className="glass-card premium-ring flex animate-scale-in items-center gap-3.5 p-5"
-          style={{
-            background: 'color-mix(in srgb, var(--color-success) 8%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--color-success) 28%, transparent)',
-          }}
-        >
-          <span className="neo-pressed shrink-0 rounded-xl p-2.5" style={{ background: 'color-mix(in srgb, var(--color-success) 18%, transparent)' }}>
-            <PartyPopper className="h-5 w-5" style={{ color: 'var(--color-success)' }} />
-          </span>
-          <div>
-            <p className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
-              All seven checks complete.
-            </p>
-            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-              You've seen the deterministic verdict, the safety guarantee, the measured accuracy, and the platform underneath it. That's the whole project.
-            </p>
-          </div>
-        </div>
-      )}
-
       <Panel title="The one-sentence version" icon={ShieldCheck}>
         <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
           Payment systems can tell you how risky a transaction looks. They don't necessarily tell
@@ -378,6 +356,28 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
           </a>
         </div>
       </Panel>
+
+      {allDone && (
+        <div
+          className="glass-card premium-ring flex animate-scale-in items-center gap-3.5 p-5"
+          style={{
+            background: 'color-mix(in srgb, var(--color-success) 8%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--color-success) 28%, transparent)',
+          }}
+        >
+          <span className="neo-pressed shrink-0 rounded-xl p-2.5" style={{ background: 'color-mix(in srgb, var(--color-success) 18%, transparent)' }}>
+            <PartyPopper className="h-5 w-5" style={{ color: 'var(--color-success)' }} />
+          </span>
+          <div>
+            <p className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+              All seven checks complete.
+            </p>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+              You've seen the deterministic verdict, the safety guarantee, the measured accuracy, and the platform underneath it. That's the whole project.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

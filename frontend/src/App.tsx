@@ -49,6 +49,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('guide')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const mainRef = useRef<HTMLElement>(null)
+  const isFirstRender = useRef(true)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -56,7 +57,9 @@ function App() {
 
   // Every tab switch is a client-side state change, not a real page
   // navigation, so the browser has no reason to reset scroll on its own.
-  // Two cases:
+  // Two cases, but only once the app is already open — the very first paint
+  // must stay at native scroll position 0 so the hero title and tab bar are
+  // what a visitor actually sees first, not skipped past immediately:
   //  - Landing back on the checklist after using one of its "Go to tab"
   //    buttons scrolls straight to that specific step, not just the top of
   //    the list, so "open Operations, check it, come back" returns you to
@@ -66,6 +69,10 @@ function App() {
   //    Defense Verifier, ...) is the first thing in view, not a repeat of
   //    chrome that's already been seen.
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
     const frame = requestAnimationFrame(() => {
       if (activeTab === 'guide') {
         const lastStepId = getLastVisitedStep()
