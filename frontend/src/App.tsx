@@ -14,6 +14,7 @@ import { RevenueIntelligence } from './components/RevenueIntelligence'
 import { MerchantRiskDashboard } from './components/MerchantRiskDashboard'
 import DefenseEvaluation from './components/DefenseEvaluation'
 import DefenseVerification from './components/DefenseVerification'
+import { EvaluatorGuide } from './components/EvaluatorGuide'
 import { SectionIntro } from './components/SectionIntro'
 import { SECTION_INTROS } from './content/sectionIntros'
 import { AppFooter } from './components/AppFooter'
@@ -33,12 +34,13 @@ import {
   Sun,
   Moon,
   Scale,
+  ListChecks,
 } from 'lucide-react'
 
-type TabKey = 'live' | 'notifications' | 'risk' | 'graph' | 'fraud' | 'failures' | 'revenue' | 'merchant' | 'investigate' | 'payments' | 'operations' | 'defense' | 'defense-ai'
+export type TabKey = 'guide' | 'live' | 'notifications' | 'risk' | 'graph' | 'fraud' | 'failures' | 'revenue' | 'merchant' | 'investigate' | 'payments' | 'operations' | 'defense' | 'defense-ai'
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>('live')
+  const [activeTab, setActiveTab] = useState<TabKey>('guide')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
 
   useEffect(() => {
@@ -46,6 +48,7 @@ function App() {
   }, [theme])
 
   const tabs = [
+    { key: 'guide' as TabKey, label: 'Start Here', shortLabel: 'Start', icon: ListChecks },
     { key: 'live' as TabKey, label: 'Live Stream', shortLabel: 'Live', icon: Radio },
     { key: 'notifications' as TabKey, label: 'Notifications', shortLabel: 'Alerts', icon: Bell },
     { key: 'risk' as TabKey, label: 'Risk Score', shortLabel: 'Risk', icon: TrendingUp },
@@ -165,6 +168,7 @@ function App() {
       <main className="w-full max-w-6xl mx-auto animate-slide-up" style={{ animationDelay: '0.3s' }}>
         {SECTION_INTROS[activeTab] && <SectionIntro {...SECTION_INTROS[activeTab]} />}
 
+        {activeTab === 'guide' && <EvaluatorGuide onNavigate={setActiveTab} />}
         {activeTab === 'live' && <LiveEventFeed />}
         {activeTab === 'notifications' && <NotificationCenter />}
         {activeTab === 'risk' && <RiskScoreGauge />}
