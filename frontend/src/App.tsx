@@ -52,6 +52,15 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
+  // Every tab switch is a client-side state change, not a real page
+  // navigation, so the browser has no reason to reset scroll on its own —
+  // without this, switching tabs while scrolled down (e.g. Operations back
+  // to the checklist) lands you wherever the previous tab left off, which
+  // reads as broken since there's nothing there to scroll to.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [activeTab])
+
   const tabs = [
     { key: 'guide' as TabKey, label: 'Start Here', shortLabel: 'Start', icon: ListChecks },
     { key: 'live' as TabKey, label: 'Live Stream', shortLabel: 'Live', icon: Radio },
