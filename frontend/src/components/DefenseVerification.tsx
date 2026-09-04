@@ -23,6 +23,7 @@ import {
 
 import { EmptyState, ErrorState, PageHeader, Panel, Pill, Stat } from './ui'
 import { VERDICTS, VerdictBadge, VerdictHero, verdictMeta } from './defense/verdict'
+import { markGuideStepDone } from '../lib/evaluatorProgress'
 
 interface ClaimExtraction {
   claim_type: string
@@ -104,6 +105,7 @@ export default function DefenseVerification() {
   const [result, setResult] = useState<VerificationResult | null>(null)
   const [aiStatus, setAiStatus] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [loadingStatement, setLoadingStatement] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -132,8 +134,15 @@ export default function DefenseVerification() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ case_id: caseId, defense_text: text }),
       })
-      if (res.ok) setResult(await res.json())
-      else setError(`Verification failed (HTTP ${res.status}). Is the case seeded?`)
+      if (res.ok) {
+        const data: VerificationResult = await res.json()
+        setResult(data)
+        // Real signal for the evaluator checklist: GOLDEN_007 specifically was
+        // actually run and returned a verdict — not just that this tab was opened.
+        if (data.case_id === 'GOLDEN_007') markGuideStepDone('headline-case')
+      } else {
+        setError(`Verification failed (HTTP ${res.status}). Is the case seeded?`)
+      }
     } catch (e) {
       setError(`Could not reach the API: ${(e as Error).message}`)
     } finally {
@@ -145,6 +154,34 @@ export default function DefenseVerification() {
     setSelectedCase(caseId)
     setDefenseText(text)
     run(caseId, text)
+  }
+
+  // Selecting a case pulls its real claim text from the golden dataset and
+  // drops it straight into the statement box — the merchant's actual wording
+  // for that case, not something typed up to match.
+  const selectCase = async (caseId: string) => {
+    setSelectedCase(caseId)
+    setResult(null)
+    setError(null)
+    if (!caseId) {
+      setDefenseText('')
+      return
+    }
+    setLoadingStatement(true)
+    try {
+      const res = await fetch(`/api/v1/defense/evaluation/cases/${caseId}`)
+      if (res.ok) {
+        const data = await res.json()
+        const claims: { claim_text: string }[] = data.claims || []
+        setDefenseText(claims.map(c => c.claim_text).join(' '))
+      } else {
+        setError(`Could not load case ${caseId} (HTTP ${res.status}).`)
+      }
+    } catch (e) {
+      setError(`Could not reach the API: ${(e as Error).message}`)
+    } finally {
+      setLoadingStatement(false)
+    }
   }
 
   const aiEnabled = Boolean(aiStatus?.enabled)
@@ -242,7 +279,7 @@ export default function DefenseVerification() {
               </label>
               <select
                 value={selectedCase}
-                onChange={e => setSelectedCase(e.target.value)}
+                onChange={e => selectCase(e.target.value)}
                 className="glass-input w-full rounded-xl p-2.5 text-sm"
               >
                 <option value="">Select a case…</option>
@@ -255,16 +292,35 @@ export default function DefenseVerification() {
             </div>
 
             <div>
-              <label
-                className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.1em]"
-                style={{ color: 'var(--color-text-tertiary)' }}
-              >
-                Merchant defense statement
-              </label>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label
+                  className="block text-[10px] font-semibold uppercase tracking-[0.1em]"
+                  style={{ color: 'var(--color-text-tertiary)' }}
+                >
+                  Merchant defense statement
+                </label>
+                {loadingStatement && (
+                  <span
+                    className="flex items-center gap-1 text-[10px]"
+                    style={{ color: 'var(--color-text-tertiary)' }}
+                  >
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    filling from case…
+                  </span>
+                )}
+                {!loadingStatement && selectedCase && defenseText && (
+                  <span
+                    className="text-[10px] italic"
+                    style={{ color: 'var(--color-text-tertiary)' }}
+                  >
+                    auto-filled from {selectedCase} · editable
+                  </span>
+                )}
+              </div>
               <textarea
                 value={defenseText}
                 onChange={e => setDefenseText(e.target.value)}
-                placeholder="e.g. The customer received the package on August 18 and signed for delivery."
+                placeholder="Select a case above to auto-fill its claim, or type your own statement here."
                 rows={5}
                 className="glass-input w-full resize-none rounded-xl p-3 text-sm"
               />
@@ -469,7 +525,12 @@ function ThreeWayComparison() {
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       })
-      if (res.ok) setData(await res.json())
+      if (res.ok) {
+        setData(await res.json())
+        // Real signal for the evaluator checklist: the three-way comparison
+        // was actually run and returned, not just that the tab was opened.
+        markGuideStepDone('ai-never-wins')
+      }
     } finally {
       setLoading(false)
     }

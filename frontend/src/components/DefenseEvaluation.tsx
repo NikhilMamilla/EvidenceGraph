@@ -26,6 +26,7 @@ import {
 import { EmptyState, LoadingState, PageHeader, Panel, Pill, Stat, SubTabs } from './ui'
 import { VERDICTS, VerdictBadge, verdictMeta } from './defense/verdict'
 import { ConfusionMatrix } from './DefenseVerification'
+import { markGuideStepDone } from '../lib/evaluatorProgress'
 
 interface Dataset {
   dataset_version: string
@@ -153,6 +154,13 @@ export default function DefenseEvaluation() {
   const latestRun = lastEvalResult || (runs.length > 0 ? runs[0] : null)
   const accuracy = latestRun?.metrics?.accuracy ?? latestRun?.accuracy ?? null
   const macroF1 = latestRun?.metrics?.macro_f1 ?? latestRun?.macro_f1 ?? null
+
+  useEffect(() => {
+    // Real signal for the evaluator checklist: a real accuracy number is on
+    // screen (whether from a run just now or one already on record) — not
+    // just that this tab was opened.
+    if (typeof accuracy === 'number') markGuideStepDone('scale')
+  }, [accuracy])
 
   return (
     <div className="space-y-6">

@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import { fetchLiveness, fetchRazorpayStatus, fetchReadiness } from '../lib/api'
 import type { RazorpayStatus, ReadinessResponse } from '../lib/api'
 import { Server, Database, Zap, CreditCard, Webhook, RefreshCw } from 'lucide-react'
+import { markGuideStepDone } from '../lib/evaluatorProgress'
 
 const POLL_INTERVAL_MS = 15_000
 
@@ -135,6 +136,9 @@ export function SystemStatus() {
       : null
 
     setState({ phase: 'ready', readiness: readinessData, razorpay: razorpayData })
+    // Real signal for the evaluator checklist: health data actually loaded and
+    // rendered, not just "the tab was opened."
+    markGuideStepDone('health')
   }
 
   useEffect(() => {

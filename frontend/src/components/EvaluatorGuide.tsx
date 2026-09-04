@@ -25,15 +25,17 @@ import {
 } from 'lucide-react'
 import { PageHeader, Panel, Pill } from './ui'
 import type { TabKey } from '../App'
+import { markGuideStepDone, readGuideProgress, resetGuideProgress, setGuideStep } from '../lib/evaluatorProgress'
 
 const REPO_URL = 'https://github.com/NikhilMamilla/EvidenceGraph'
-const STORAGE_KEY = 'eg:evaluator-checklist:v1'
 
 type Step = {
   id: string
   title: string
   body: string
   lookFor: string
+  /** What actually flips this step to done — shown so it's never a mystery why a box ticked itself. */
+  autoHint: string
   nav?: { tab: TabKey; label: string }
   external?: { href: string; label: string }
 }
@@ -44,6 +46,7 @@ const STEPS: Step[] = [
     title: 'Confirm the stack is actually up',
     body: 'Before anything else — check that the backend, database, Redis, and the webhook worker are real and healthy, not mocked for the demo.',
     lookFor: 'All services green. The webhook counter reads a persisted count from the database, so it survives a restart — it is not an in-process number that resets to zero.',
+    autoHint: 'auto-checks once the health data actually loads on that tab',
     nav: { tab: 'operations', label: 'Open Operations' },
   },
   {
@@ -51,6 +54,7 @@ const STEPS: Step[] = [
     title: 'Run the one case that explains the whole project',
     body: "Open the demo dropdown and run GOLDEN_007. The merchant's claim: \"The package was delivered successfully by our courier.\" Payment ID matches. Order ID matches — two signals agree with the story. But the carrier's own API says the delivery failed, and that one authoritative contradiction overrides both agreeing signals.",
     lookFor: 'Verdict: CONTRADICTED — not a blended "mostly fine." Watch the five-stage pipeline run (claim extraction → evidence matching → ID validation → deterministic evaluation → final verdict), then check the supporting/contradicting evidence IDs and the SHA-256 decision trace under the verdict.',
+    autoHint: 'auto-checks only once you actually run GOLDEN_007 — opening the tab alone won\'t check it',
     nav: { tab: 'defense-ai', label: 'Open AI Verify' },
   },
   {
@@ -58,6 +62,7 @@ const STEPS: Step[] = [
     title: 'Confirm the AI never overrides the rules',
     body: 'Same tab — scroll down to the three-way comparison. It runs the full golden set through three independent pipelines: deterministic-only, a deterministic stub "AI," and (if enabled) a real LLM.',
     lookFor: 'The "False SUPPORTED" and "Contradiction miss" rows read 0% on every track, regardless of which AI provider is behind it — because the deterministic engine has final authority no matter what the AI proposes.',
+    autoHint: 'auto-checks once you click "Run evaluation" in the three-way panel and it returns',
     nav: { tab: 'defense-ai', label: 'Open AI Verify' },
   },
   {
@@ -65,6 +70,7 @@ const STEPS: Step[] = [
     title: 'See it hold up at scale, not just on one case',
     body: 'One convincing example is not a proof. This is: a 50-case frozen golden set, held out from all development, with two independent label passes checked against each other.',
     lookFor: 'Accuracy, macro-F1, a "0" on False-SUPPORTED, Cohen\'s κ (~0.87, "almost perfect" agreement), and the confusion matrix. Click "Run evaluation" if the numbers are not already there.',
+    autoHint: 'auto-checks once real accuracy numbers are actually on screen',
     nav: { tab: 'defense', label: 'Open Defense Eval' },
   },
   {
@@ -72,6 +78,7 @@ const STEPS: Step[] = [
     title: 'See the platform underneath it',
     body: 'The verifier is not standalone — it sits on a real evidence-ingestion pipeline: Razorpay webhooks in, canonical entities out, cross-checked and reconciled. Open a real payment and look at its evidence.',
     lookFor: 'Real evidence facts, provenance, and an integrity score computed from actual ingested data — not placeholder numbers.',
+    autoHint: 'auto-checks only once you actually open a specific payment, not just the tab',
     nav: { tab: 'payments', label: 'Open Payments' },
   },
   {
@@ -79,60 +86,39 @@ const STEPS: Step[] = [
     title: 'Check the scope discipline',
     body: 'This is defense-only, by design. No fraud probability or risk score anywhere in this app feeds the verdict — the Fraud, Risk, Revenue, and Merchant Risk tabs are read-only analytics, never inputs to the verifier. Nothing here auto-submits to a card network.',
     lookFor: 'The verdict path only ever depends on the evidence graph for the case being checked.',
+    autoHint: 'no page to check this against — tick it yourself once you\'ve read it',
   },
   {
     id: 'source',
     title: 'Check the code and the numbers yourself',
     body: 'Everything above is reproducible from a clean clone: one command brings up the whole stack, seeds the golden set, and freezes it.',
     lookFor: 'docker compose up --build — Postgres, Redis, backend, and this frontend, together.',
+    autoHint: 'auto-checks the moment you click through',
     external: { href: REPO_URL, label: 'View source on GitHub' },
   },
 ]
 
-function readDone(): Record<string, boolean> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-// Writes synchronously, independent of React's render/effect timing. Clicking
-// a step's "Go to tab" button flips the parent's active tab in the same
-// handler, which unmounts this component before a useEffect keyed on state
-// would ever fire — so persistence can't wait for one. This runs the moment
-// the click happens, so the value is already on disk by the time we unmount.
-function persistDone(next: Record<string, boolean>) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  } catch {
-    /* private mode — fine, just don't persist */
-  }
-}
-
 export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => void }) {
-  const [done, setDone] = useState<Record<string, boolean>>(() => readDone())
+  const [done, setDone] = useState<Record<string, boolean>>(() => readGuideProgress())
 
   const toggle = useCallback((id: string) => {
     setDone(prev => {
-      const next = { ...prev, [id]: !prev[id] }
-      persistDone(next)
-      return next
+      const value = !prev[id]
+      setGuideStep(id, value)
+      return { ...prev, [id]: value }
     })
   }, [])
 
   const markDone = useCallback((id: string) => {
     setDone(prev => {
       if (prev[id]) return prev
-      const next = { ...prev, [id]: true }
-      persistDone(next)
-      return next
+      markGuideStepDone(id)
+      return { ...prev, [id]: true }
     })
   }, [])
 
   const reset = useCallback(() => {
-    persistDone({})
+    resetGuideProgress()
     setDone({})
   }, [])
 
@@ -216,7 +202,6 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
       <div className="space-y-4">
         {STEPS.map((step, i) => {
           const isDone = !!done[step.id]
-          const autoMarks = !!(step.nav || step.external)
           return (
             <div
               key={step.id}
@@ -259,12 +244,12 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
                   >
                     {step.title}
                   </h3>
-                  {autoMarks && !isDone && (
+                  {!isDone && (
                     <span
                       className="text-[10px] font-medium italic"
                       style={{ color: 'var(--color-text-tertiary)' }}
                     >
-                      auto-checks when you open it
+                      {step.autoHint}
                     </span>
                   )}
                 </div>
@@ -284,10 +269,7 @@ export function EvaluatorGuide({ onNavigate }: { onNavigate: (tab: TabKey) => vo
                 {step.nav && (
                   <button
                     type="button"
-                    onClick={() => {
-                      onNavigate(step.nav!.tab)
-                      markDone(step.id)
-                    }}
+                    onClick={() => onNavigate(step.nav!.tab)}
                     className="tab-glass-active mt-1 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold"
                   >
                     {step.nav.label}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { CheckCircle, XCircle, Clock, CreditCard, DollarSign, RefreshCw, Receipt, Layers, ShieldCheck, GitCompare, Link2, AlertTriangle } from 'lucide-react'
 import { EmptyState, LoadingState, PageHeader, Panel, SubTabs } from './ui'
+import { markGuideStepDone } from '../lib/evaluatorProgress'
 
 type DetailTab = 'overview' | 'evidence' | 'integrity'
 
@@ -645,7 +646,12 @@ export function PaymentInspector() {
         fetch(`/api/v1/payments/${paymentId}/operational-status`),
       ])
       
-      if (resDetails.ok) setSelectedPayment(await resDetails.json())
+      if (resDetails.ok) {
+        setSelectedPayment(await resDetails.json())
+        // Real signal for the evaluator checklist: a specific payment was
+        // actually opened, not just that this tab was visited.
+        markGuideStepDone('platform')
+      }
       if (resTimeline.ok) setSelectedTimeline(await resTimeline.json())
       if (resGraph.ok) setSelectedGraph(await resGraph.json())
       if (resOps.ok) setSelectedOperationalStatus(await resOps.json())
