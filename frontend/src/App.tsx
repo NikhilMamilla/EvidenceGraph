@@ -88,8 +88,17 @@ function App() {
     return () => cancelAnimationFrame(frame)
   }, [activeTab])
 
+  // Ordered to match how the checklist itself walks an evaluator through the
+  // project: Start Here, then the two graded Track-02 deliverables (AI Verify,
+  // Defense Eval), then Operations and Payments (both referenced by checklist
+  // steps 1 and 5), then the rest of the evidence platform this verifier is
+  // built on top of — real, but not what's being graded.
   const tabs = [
     { key: 'guide' as TabKey, label: 'Start Here', shortLabel: 'Start', icon: ListChecks },
+    { key: 'defense-ai' as TabKey, label: 'AI Verify', shortLabel: 'AI Verify', icon: Shield },
+    { key: 'defense' as TabKey, label: 'Defense Eval', shortLabel: 'Defense', icon: Scale },
+    { key: 'operations' as TabKey, label: 'Operations', shortLabel: 'Ops', icon: Activity },
+    { key: 'payments' as TabKey, label: 'Payments', shortLabel: 'Payments', icon: Shield },
     { key: 'live' as TabKey, label: 'Live Stream', shortLabel: 'Live', icon: Radio },
     { key: 'notifications' as TabKey, label: 'Notifications', shortLabel: 'Alerts', icon: Bell },
     { key: 'risk' as TabKey, label: 'Risk Score', shortLabel: 'Risk', icon: TrendingUp },
@@ -99,10 +108,6 @@ function App() {
     { key: 'revenue' as TabKey, label: 'Revenue', shortLabel: 'Revenue', icon: DollarSign },
     { key: 'merchant' as TabKey, label: 'Merchant Risk', shortLabel: 'Merchant', icon: BarChart3 },
     { key: 'investigate' as TabKey, label: 'Investigation', shortLabel: 'Investigate', icon: Compass },
-    { key: 'payments' as TabKey, label: 'Payments', shortLabel: 'Payments', icon: Shield },
-    { key: 'operations' as TabKey, label: 'Operations', shortLabel: 'Ops', icon: Activity },
-    { key: 'defense' as TabKey, label: 'Defense Eval', shortLabel: 'Defense', icon: Scale },
-    { key: 'defense-ai' as TabKey, label: 'AI Verify', shortLabel: 'AI Verify', icon: Shield },
   ]
 
   return (
@@ -211,6 +216,17 @@ function App() {
 
         {activeTab === 'guide' && <EvaluatorGuide onNavigate={setActiveTab} />}
         <Suspense fallback={<LoadingState label="Loading tab…" />}>
+          {activeTab === 'defense-ai' && <DefenseVerification />}
+          {activeTab === 'defense' && <DefenseEvaluation />}
+          {activeTab === 'operations' && (
+            <div className="space-y-6">
+              <div className="w-full flex flex-col lg:flex-row gap-6">
+                <SystemStatus />
+              </div>
+              <OperationsDashboard />
+            </div>
+          )}
+          {activeTab === 'payments' && <PaymentInspector />}
           {activeTab === 'live' && <LiveEventFeed />}
           {activeTab === 'notifications' && <NotificationCenter />}
           {activeTab === 'risk' && <RiskScoreGauge />}
@@ -220,17 +236,6 @@ function App() {
           {activeTab === 'revenue' && <RevenueIntelligence />}
           {activeTab === 'merchant' && <MerchantRiskDashboard />}
           {activeTab === 'investigate' && <InvestigationCenter />}
-          {activeTab === 'payments' && <PaymentInspector />}
-          {activeTab === 'operations' && (
-            <div className="space-y-6">
-              <div className="w-full flex flex-col lg:flex-row gap-6">
-                <SystemStatus />
-              </div>
-              <OperationsDashboard />
-            </div>
-          )}
-          {activeTab === 'defense' && <DefenseEvaluation />}
-          {activeTab === 'defense-ai' && <DefenseVerification />}
         </Suspense>
       </main>
 
