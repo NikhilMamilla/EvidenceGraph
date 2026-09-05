@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://REPLACE-WITH-YOUR-RENDER-URL.onrender.com/api/$1" },
+    { "source": "/health", "destination": "https://REPLACE-WITH-YOUR-RENDER-URL.onrender.com/health" },
+    { "source": "/docs", "destination": "https://REPLACE-WITH-YOUR-RENDER-URL.onrender.com/docs" },
+    { "source": "/redoc", "destination": "https://REPLACE-WITH-YOUR-RENDER-URL.onrender.com/redoc" },
+    { "source": "/openapi.json", "destination": "https://REPLACE-WITH-YOUR-RENDER-URL.onrender.com/openapi.json" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

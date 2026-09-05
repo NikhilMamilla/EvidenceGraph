@@ -312,6 +312,12 @@ Full command list, a step-by-step manual walkthrough, and a troubleshooting
 table (MTU issues on Docker Desktop/WSL2, stale networks, rate limits, etc.):
 **[`docs/RUN.md`](docs/RUN.md)**.
 
+### Live deployment
+
+Frontend on Vercel, backend on Render, Redis on Upstash, database already on
+Supabase — three free services, no code changes, `git push` auto-redeploys
+both sides afterward. Full walkthrough: **[`docs/DEPLOY.md`](docs/DEPLOY.md)**.
+
 ---
 
 ## Configuration

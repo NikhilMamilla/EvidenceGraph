@@ -1,0 +1,61 @@
+# =============================================================================
+# Render Blueprint — EvidenceGraph backend
+#
+# Deploys the existing backend/Dockerfile as-is, unchanged, as a Render web
+# service. Connect this repo on Render as a "Blueprint" and it reads this
+# file automatically; every `sync: false` variable is a secret Render will
+# prompt you to paste in during setup rather than storing in the repo.
+#
+# Database: Supabase (external, already hosted) — just paste DATABASE_URL.
+# Redis: external (Upstash free tier recommended) — paste its REDIS_URL.
+# =============================================================================
+
+services:
+  - type: web
+    name: evidencegraph-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health/live
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_NAME
+        value: evidencegraph-api
+      - key: LOG_LEVEL
+        value: INFO
+
+      # --- Secrets: paste these in during Blueprint setup ------------------
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: ADMIN_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+
+      # --- Non-secret config -----------------------------------------------
+      - key: RAZORPAY_MODE
+        value: test
+      - key: AI_ENABLED
+        value: "false"
+      - key: AI_PROVIDER
+        value: mistral
+      - key: AI_MISTRAL_MODEL
+        value: mistral-small-latest
+      - key: SEED_GOLDEN_CASES
+        value: "true"
+      - key: SEED_FREEZE_DATASET
+        value: "true"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "120"
